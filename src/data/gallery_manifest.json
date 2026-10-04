@@ -1,0 +1,83 @@
+{
+  "overview": {
+    "cameraPosition": [0.0, 2.05, 7.3],
+    "targetPosition": [0.0, 1.2, -3.0]
+  },
+  "garments": [
+    {
+      "id": "giao_linh",
+      "meshName": "GARMENT_GiaoLinh",
+      "backdropName": "ENV_Backdrop_GiaoLinh",
+      "title": "Áo Giao Lĩnh & Thường Xếp Ly",
+      "era": "Lý – Trần – Lê Trung Hưng (Nữ phục & Lễ phục)",
+      "tourOrder": 1,
+      "rotatable": true,
+      "studio360Enabled": true,
+      "highlightFront": "Cổ giao lĩnh vắt chéo hữu nhậm (vạt trái đè vạt phải) lộ cổ trung y trắng, tay thụng rộng và đai lưng treo ngọc bội. Phối áo lửng cùng thường (váy) xếp ly là lối phục sức đặc trưng của phụ nữ truyền thống; trong khi nam giới thường mặc áo giao lĩnh dài trùm gối cùng quần hoặc đội mũ lễ phục.",
+      "highlightBack": "Thân sau suông phẳng theo lối cắt đồng văn cổ truyền, hai ống tay thụng nối qua đường tiếp tụ phối cùng nếp thường xếp ly đều đặn.",
+      "pedestalOrigin": [-1.65, 0.0, 3.5],
+      "cameraPosition": [0.65, 1.4, 4.1],
+      "targetPosition": [-1.65, 1.25, 3.5]
+    },
+    {
+      "id": "tu_than",
+      "meshName": "GARMENT_TuThan",
+      "backdropName": "ENV_Backdrop_TuThan",
+      "title": "Áo Tứ Thân & Nón Quai Thao",
+      "era": "Dân gian Bắc Bộ (Nữ phục truyền thống)",
+      "tourOrder": 2,
+      "rotatable": true,
+      "studio360Enabled": true,
+      "highlightFront": "Trang phục thuần nữ của vùng Kinh Bắc: Áo khoác nâu mở vạt lộ yếm đào đỏ thẫm, thắt lưng lụa xanh cốm (bao) buông trước váy đụp đen, đầu đội nón ba tầm (quai thao) gắn liền với văn hóa hát Quan họ.",
+      "highlightBack": "Dây yếm đào vòng qua cổ dưới vành nón ba tầm rộng bản; thân sau buông rủ thanh thoát tôn nét duyên dáng mộc mạc của người phụ nữ Việt xưa.",
+      "pedestalOrigin": [1.65, 0.0, 0.5],
+      "cameraPosition": [-0.65, 1.4, 1.1],
+      "targetPosition": [1.65, 1.25, 0.5]
+    },
+    {
+      "id": "ngu_than",
+      "meshName": "GARMENT_NguThan",
+      "backdropName": "ENV_Backdrop_NguThan",
+      "title": "Áo Ngũ Thân Tay Chẽn",
+      "era": "Thời Nguyễn (Nam phục & Tiền thân Áo Dài)",
+      "tourOrder": 3,
+      "rotatable": true,
+      "studio360Enabled": true,
+      "highlightFront": "Phom Áo Ngũ Thân Nam giới chuẩn mực: Cổ đứng cao, vạt cả cài 5 khuy đồng bên phải (hữu nhậm – tượng trưng Ngũ thường), phom suông kín đáo phối quần lụa trắng ống rộng và khăn đóng. (Nữ giới cũng mặc Ngũ Thân nhưng cổ thấp hơn và ống tay thon gọn hơn).",
+      "highlightBack": "Đường may sống lưng (trung phùng) chạy thẳng tắp chia đôi hai thân sau, thể hiện cốt cách ngay thẳng và lễ nghĩa của bậc quân tử xưa.",
+      "pedestalOrigin": [-1.65, 0.0, -2.5],
+      "cameraPosition": [0.65, 1.4, -1.9],
+      "targetPosition": [-1.65, 1.25, -2.5]
+    },
+    {
+      "id": "ao_dai",
+      "meshName": "GARMENT_AoDai",
+      "backdropName": "ENV_Backdrop_AoDai",
+      "title": "Áo Dài Tân Thời & Đương Đại",
+      "era": "Thế kỷ XX – Đương đại (Nữ phục Việt Nam)",
+      "tourOrder": 4,
+      "rotatable": true,
+      "studio360Enabled": true,
+      "highlightFront": "Kế thừa từ Áo Ngũ Thân nhưng được cải cách từ thập niên 1930–1960 dành cho nữ giới: Thân áo hồng sen chiết eo tôn đường cong, tay raglan liền vai, hai tà xẻ cao từ hông lộ quần lụa trắng kết hợp mấn đội đầu đồng điệu.",
+      "highlightBack": "Tà sau ôm nhẹ vùng eo và buông rủ thướt tha theo nhịp bước, trở thành biểu tượng nhận diện văn hóa Việt Nam trên trường quốc tế.",
+      "pedestalOrigin": [1.65, 0.0, -5.5],
+      "cameraPosition": [-0.65, 1.4, -4.9],
+      "targetPosition": [1.65, 1.25, -5.5]
+    },
+    {
+      "id": "nhat_binh",
+      "meshName": "GARMENT_NhatBinh",
+      "backdropName": "ENV_Backdrop_NhatBinh",
+      "title": "Áo Nhật Bình Cung Đình",
+      "era": "Triều Nguyễn – Huế (Lễ phục Nữ giới Hoàng gia)",
+      "tourOrder": 5,
+      "rotatable": true,
+      "studio360Enabled": true,
+      "highlightFront": "Lễ phục dành riêng cho Hậu phi, Công chúa và Mệnh phụ triều Nguyễn: Cổ áo bản lớn viền gấm vàng ghép thành dáng chữ nhật (Nhật Bình) trước ngực, tay thụng phối dải Ngũ Sắc 5 màu (Lục – Huỳnh – Lam – Xích – Bạch), mặc ngoài thường trắng xếp ly và đội khăn vành.",
+      "highlightBack": "Phom áo bào hoàng cung bề thế với hai ống tay thụng rộng rực rỡ sắc màu Ngũ Hành, lọt lòng trang trọng giữa khung cửa Vòng Nguyệt.",
+      "pedestalOrigin": [0.0, 0.15, -7.8],
+      "cameraPosition": [0.0, 1.55, -5.1],
+      "targetPosition": [0.0, 1.45, -7.8]
+    }
+  ]
+}

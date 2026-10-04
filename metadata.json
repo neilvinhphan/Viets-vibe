@@ -1,0 +1,6 @@
+{
+  "name": "Viet Phuc Mix & Match",
+  "description": "Interactive traditional Vietnamese attire layering studio with an authentic cultural validation engine, historical metadata analysis, and AI garment recognition.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
