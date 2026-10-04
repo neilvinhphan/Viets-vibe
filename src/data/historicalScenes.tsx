@@ -8,12 +8,14 @@ export interface HistoricalScene {
   era: string;
   dynastyPeriod: string;
   description: string;
+  groundY: number; // Architectural base in the shared 1200 x 800 artwork viewBox.
   renderArtwork: () => React.ReactNode;
 }
 
 export const HISTORICAL_SCENES: HistoricalScene[] = [
   {
     id: 'hue_citadel',
+    groundY: 660,
     name: 'Đại Nội Huế',
     shortLabel: 'Ngọ Môn',
     subtitle: 'Ngọ Môn & Lầu Ngũ Phụng • Cố Đô Huế',
@@ -110,6 +112,7 @@ export const HISTORICAL_SCENES: HistoricalScene[] = [
   },
   {
     id: 'thang_long',
+    groundY: 680,
     name: 'Hoàng Thành Thăng Long',
     shortLabel: 'Đoan Môn',
     subtitle: 'Đoan Môn & Bậc Rồng • Thăng Long Nghìn Năm',
@@ -191,6 +194,7 @@ export const HISTORICAL_SCENES: HistoricalScene[] = [
   },
   {
     id: 'van_mieu',
+    groundY: 680,
     name: 'Văn Miếu Quốc Tử Giám',
     shortLabel: 'Khuê Văn Các',
     subtitle: 'Khuê Văn Các & Giếng Thiên Quang • 1070',
@@ -273,6 +277,7 @@ export const HISTORICAL_SCENES: HistoricalScene[] = [
   },
   {
     id: 'chua_mot_cot',
+    groundY: 640,
     name: 'Chùa Một Cột',
     shortLabel: 'Diên Hựu Tự',
     subtitle: 'Liên Hoa Đài • Thời Lý (1049)',
@@ -351,6 +356,7 @@ export const HISTORICAL_SCENES: HistoricalScene[] = [
   },
   {
     id: 'hoa_lu',
+    groundY: 675,
     name: 'Cố Đô Hoa Lư',
     shortLabel: 'Nghi Môn Đá',
     subtitle: 'Đền Vua Đinh - Lê • Núi Non Trùng Điệp',
@@ -406,6 +412,7 @@ export const HISTORICAL_SCENES: HistoricalScene[] = [
   },
   {
     id: 'pure_canvas',
+    groundY: 680,
     name: 'Canvas Tinh Khôi',
     shortLabel: 'Thanh Khiết',
     subtitle: 'Bạch Sa • Nền Lụa Tự Nhiên Không Bối Cảnh',

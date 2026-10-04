@@ -36,7 +36,9 @@ export const SceneBackground: React.FC<SceneBackgroundProps> = ({
           */}
           <div
             id={`scene-watermark-${scene.id}`}
-            className={`w-full h-full grayscale ${opacityClass} mix-blend-multiply contrast-125 transition-opacity duration-1000 flex items-center justify-center pointer-events-none`}
+            className={`scene-artwork-plane grayscale ${opacityClass} mix-blend-multiply contrast-125 transition-opacity duration-1000 pointer-events-none`}
+            // Anchor each scene's foundation to the avatar shadow, independent of aspect ratio.
+            style={{ transform: `translate(-50%, -${scene.groundY / 8}%)` }}
           >
             {scene.renderArtwork()}
           </div>

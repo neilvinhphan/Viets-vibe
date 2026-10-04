@@ -1,12 +1,53 @@
 @import "tailwindcss";
 
 @layer base {
+  html, body, #root {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   body {
     font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
   
   h1, h2, h3, .font-royal {
     font-family: 'Cormorant Garamond', 'Be Vietnam Pro', serif;
+  }
+}
+
+/* Keep the avatar and architectural ground on the same responsive plane.
+   The avatar's shadow is at y=505 in its 340 x 520 viewBox. */
+.studio-stage {
+  container-type: size;
+  --avatar-height: min(440px, max(0px, calc(100cqh - 136px)));
+  --avatar-center-offset: -28px;
+}
+
+.avatar-figure {
+  height: var(--avatar-height);
+  width: calc(var(--avatar-height) * 340 / 520);
+}
+
+.scene-artwork-plane {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--avatar-center-offset) + var(--avatar-height) * 245 / 520);
+  width: calc(var(--avatar-height) * 3.6);
+  height: calc(var(--avatar-height) * 2.4);
+}
+
+@media (min-width: 640px) {
+  .studio-stage {
+    --avatar-height: min(520px, max(0px, calc(100cqh - 136px)));
+  }
+}
+
+@media (min-width: 768px) {
+  .studio-stage {
+    --avatar-height: min(520px, 100cqh);
+    --avatar-center-offset: 0px;
   }
 }
 

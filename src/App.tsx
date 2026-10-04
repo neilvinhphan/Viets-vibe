@@ -511,17 +511,17 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#faf8f5] text-stone-800 flex flex-col font-sans selection:bg-amber-100 selection:text-amber-900">
+    <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col bg-[#faf8f5] text-stone-800 font-sans selection:bg-amber-100 selection:text-amber-900">
       {/* Top Navbar */}
-      <header className={`relative z-50 h-[50px] sm:h-[54px] w-full max-w-[100vw] shrink-0 bg-[#faf8f5] border-b border-stone-200/80 px-2 sm:px-6 flex items-center justify-between gap-1 sm:gap-2 transition-all duration-500 transform ${
+      <header className={`relative z-50 min-h-[54px] w-full shrink-0 bg-[#faf8f5] border-b border-stone-200/80 px-3.5 py-2.5 md:px-6 md:py-2 flex md:flex-wrap items-center justify-between gap-2 transition-all duration-500 transform ${
         isZenMode || isIntroActive ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
       }`}>
         {/* Left: Branding & 2D/3D Mode Switcher */}
-        <div className="flex items-center gap-1.5 sm:gap-3.5 whitespace-nowrap shrink-0">
+        <div className="contents md:flex md:items-center md:gap-3.5 whitespace-nowrap shrink-0">
           <div className="flex items-baseline gap-1.5 sm:gap-2">
-            <h1 className="text-[13px] sm:text-lg font-semibold font-royal tracking-wide text-stone-900 whitespace-nowrap">
-              <span className="sm:hidden">Việt Phục</span>
-              <span className="hidden sm:inline">Việt Phục Remix</span>
+            <h1 className="text-base md:text-lg font-semibold font-royal tracking-wide text-stone-900 whitespace-nowrap">
+              <span className="md:hidden">Việt Phục</span>
+              <span className="hidden md:inline">Việt Phục Remix</span>
             </h1>
             <span className="hidden lg:inline text-xs font-serif italic text-stone-500">
               — Gen Z Studio
@@ -534,14 +534,14 @@ export default function App() {
               id="view-switch-2d-btn"
               type="button"
               onClick={() => setActiveView('studio_2d')}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-2.5 lg:px-3 rounded-full transition-all text-[11px] sm:text-xs ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-xs ${
                 activeView === 'studio_2d'
                   ? 'bg-white text-stone-900 shadow-2xs font-bold'
                   : 'text-stone-600 hover:text-stone-900'
               }`}
               title="Chuyển sang Bàn Phối Trang Phục 2D Gen Z"
             >
-              <span>🎨</span>
+              <span className="hidden md:inline">🎨</span>
               <span className="hidden lg:inline">Bàn Phối 2D</span>
               <span className="lg:hidden">2D</span>
             </button>
@@ -552,14 +552,14 @@ export default function App() {
                 setGalleryTargetId('overview');
                 setActiveView('gallery_3d');
               }}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-2.5 lg:px-3 rounded-full transition-all text-[11px] sm:text-xs ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-xs ${
                 activeView === 'gallery_3d'
                   ? 'bg-amber-500 text-stone-950 shadow-2xs font-bold ring-1 ring-amber-400'
                   : 'text-stone-600 hover:text-stone-900 hover:text-amber-800'
               }`}
               title="Khám phá Hành Lang Di Sản 3D Không Gian 360°"
             >
-              <span>🏛️</span>
+              <span className="hidden md:inline">🏛️</span>
               <span className="hidden lg:inline">Hành Lang 3D</span>
               <span className="lg:hidden">3D</span>
             </button>
@@ -567,19 +567,19 @@ export default function App() {
         </div>
 
         {/* Center: Validation Status Pill */}
-        <div className="flex items-center justify-center shrink-0 mx-0.5 sm:mx-1">
+        <div className="hidden md:flex items-center justify-center shrink-0 md:mx-1">
           {renderValidationStatusPill()}
         </div>
 
         {/* Right: Quick actions cluster */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
           {/* Remix / Presets Dropdown (includes ✨ AI Vibe-to-Outfit input) */}
           <div className="relative">
             <button
               id="nav-remix-btn"
               ref={remixBtnRef}
               onClick={() => setActivePopover(prev => prev === 'remix' ? null : 'remix')}
-              className={`w-8 h-8 flex items-center justify-center p-0 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 rounded-full text-xs font-medium border transition-all shrink-0 ${
+              className={`w-8 h-8 flex items-center justify-center p-0 md:w-auto md:h-auto md:px-3 md:py-1.5 rounded-full text-xs font-medium border transition-all shrink-0 ${
                 isRemixMenuOpen
                   ? 'bg-stone-900 text-stone-50 border-stone-900'
                   : 'bg-white hover:bg-stone-100/90 text-stone-700 border-stone-200/90 shadow-2xs'
@@ -587,8 +587,8 @@ export default function App() {
               title="Phối mẫu trang phục theo sử liệu, Gen Z Remix hoặc AI Vibe"
             >
               <Wand2 className="w-3.5 h-3.5 text-[#996515]" />
-              <span className="hidden sm:inline sm:ml-1.5">Phối Mẫu</span>
-              <ChevronDown className="w-3 h-3 text-stone-400 hidden sm:inline sm:ml-1" />
+              <span className="hidden md:inline md:ml-1.5">Phối Mẫu</span>
+              <ChevronDown className="w-3 h-3 text-stone-400 hidden md:inline md:ml-1" />
             </button>
 
             {/* Remix Popover Menu */}
@@ -718,7 +718,7 @@ export default function App() {
               id="nav-tools-btn"
               ref={toolsBtnRef}
               onClick={() => setActivePopover(prev => prev === 'tools' ? null : 'tools')}
-              className={`w-8 h-8 flex items-center justify-center p-0 sm:w-auto sm:h-auto sm:p-1.5 rounded-full border transition-all shrink-0 ${
+              className={`w-8 h-8 flex items-center justify-center p-0 md:w-auto md:h-auto md:p-1.5 rounded-full border transition-all shrink-0 ${
                 isToolsMenuOpen
                   ? 'bg-stone-900 text-stone-50 border-stone-900'
                   : 'bg-white hover:bg-stone-100 text-stone-600 border-stone-200/90 shadow-2xs'
@@ -740,6 +740,19 @@ export default function App() {
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
+                <button
+                  id="mobile-validation-status"
+                  onClick={() => setActivePopover('validation')}
+                  className={`md:hidden w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs font-medium hover:bg-stone-100 ${
+                    equippedGarments.length === 0 ? 'text-stone-600' :
+                    metrics.status === 'authentic' ? 'text-emerald-700' :
+                    metrics.status === 'advisory' ? 'text-amber-700' : 'text-rose-700'
+                  }`}
+                  title="Xem kiểm định văn hóa"
+                >
+                  <span aria-hidden="true">•</span>
+                  <span>{equippedGarments.length === 0 ? 'Chưa Mặc' : `${metrics.overallScore}% ${metrics.status === 'authentic' ? 'Chuẩn' : metrics.status === 'advisory' ? 'Lưu ý' : 'Lỗi'}`}</span>
+                </button>
                 <button
                   onClick={() => { setActivePopover('gemini'); }}
                   className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs text-stone-700 hover:bg-stone-100 transition-colors"
@@ -779,7 +792,7 @@ export default function App() {
               setActivePopover(null);
               setIsZenMode(true);
             }}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-white hover:bg-stone-100/90 text-stone-700 border-stone-200/90 shadow-2xs text-xs font-medium transition-all shrink-0"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-white hover:bg-stone-100/90 text-stone-700 border-stone-200/90 shadow-2xs text-xs font-medium transition-all shrink-0"
             title="Chế độ Chiêm Ngưỡng (Zen Mode với Âm Điệu Cầm, Tranh)"
           >
             <Sparkles className="w-3.5 h-3.5 text-[#996515]" />
@@ -792,11 +805,11 @@ export default function App() {
             onClick={() => {
               setActivePopover('lookbook');
             }}
-            className="w-8 h-8 flex items-center justify-center p-0 sm:w-auto sm:h-auto sm:px-3.5 sm:py-1.5 rounded-full bg-stone-900 hover:bg-stone-800 text-stone-50 text-xs font-semibold transition-all shadow-xs hover:scale-105 active:scale-95 shrink-0"
+            className="w-8 h-8 flex items-center justify-center p-0 md:w-auto md:h-auto md:px-3.5 md:py-1.5 rounded-full bg-stone-900 hover:bg-stone-800 text-stone-50 text-xs font-semibold transition-all shadow-xs hover:scale-105 active:scale-95 shrink-0"
             title="Xuất Thẻ Lookbook 9:16 & So Sánh Phương Án"
           >
             <Share2 className="w-3.5 h-3.5 text-amber-300" />
-            <span className="hidden sm:inline sm:ml-1.5">Thẻ Lookbook</span>
+            <span className="hidden md:inline md:ml-1.5">Thẻ Lookbook</span>
           </button>
         </div>
       </header>
@@ -812,7 +825,7 @@ export default function App() {
 
       {/* Main Stage Workspace: 2D Studio vs 3D Heritage Gallery */}
       {activeView === 'gallery_3d' ? (
-        <main className="relative z-10 flex-1 w-full h-[calc(100vh-54px)] overflow-hidden bg-[#120c09]">
+        <main className="flex-1 min-h-0 relative overflow-hidden z-10 w-full bg-[#120c09]">
           <VietPhucGallery
             initialGarmentId={galleryTargetId}
             onBackToStudio={() => setActiveView('studio_2d')}
@@ -828,8 +841,8 @@ export default function App() {
           style={{
             backgroundColor: eraLighting.backgroundColor,
           }}
-          className={`relative z-10 flex-1 w-full overflow-hidden flex items-center justify-center transition-colors duration-700 ease-out ${
-            isZenMode ? 'h-screen cursor-pointer' : 'h-[calc(100vh-54px)]'
+          className={`studio-stage flex-1 min-h-0 relative overflow-hidden z-10 w-full flex items-center justify-center transition-colors duration-700 ease-out ${
+            isZenMode ? 'cursor-pointer' : ''
           }`}
         >
         {/* Dynamic Background Radial Lighting */}

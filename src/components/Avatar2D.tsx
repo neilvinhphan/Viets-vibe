@@ -474,14 +474,14 @@ export const Avatar2D: React.FC<Avatar2DProps> = ({
       </motion.div>
 
       {/* Main Avatar Stage */}
-      <div className="relative flex-1 w-full h-full flex items-center justify-center pb-24 md:pb-0 pt-10 md:pt-0">
+      <div className="relative flex-1 min-h-0 w-full flex items-center justify-center pb-24 md:pb-0 pt-10 md:pt-0">
         <div
           id="avatar-scale-stage"
           style={{
             transform: `scale(${zoomLevel})`,
             transformOrigin: 'center center',
           }}
-          className="relative w-[280px] h-[440px] sm:w-[340px] sm:h-[520px] transition-transform duration-300 ease-out"
+          className="avatar-figure relative shrink-0 transition-transform duration-300 ease-out"
         >
           {/* Subtle Elbow Connecting Lines for Desktop */}
           <motion.svg

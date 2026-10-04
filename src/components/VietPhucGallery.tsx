@@ -1,23 +1,35 @@
-import React, { useState, useEffect, useRef, useMemo, Suspense, useCallback } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, useGLTF, Center } from '@react-three/drei';
-import * as THREE from 'three';
-import manifestData from '../data/gallery_manifest.json';
-import { 
-  ArrowLeft, 
-  RotateCw, 
-  Sparkles, 
-  Eye, 
-  ChevronLeft, 
-  ChevronRight, 
-  Upload, 
-  Info, 
-  X, 
-  Check, 
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  Suspense,
+  useCallback,
+} from "react";
+import { Canvas, useFrame, useThree, ThreeEvent } from "@react-three/fiber";
+import {
+  useGLTF,
+  CameraControls,
+  CameraControlsImpl,
+  Environment,
+  ContactShadows,
+  Html,
+} from "@react-three/drei";
+import * as THREE from "three";
+import manifestData from "../data/gallery_manifest.json";
+import {
+  ArrowLeft,
+  Sparkles,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  Upload,
+  Info,
+  X,
   Loader2,
   Maximize2,
-  Compass
-} from 'lucide-react';
+  Compass,
+} from "lucide-react";
 
 export interface GarmentManifestItem {
   id: string;
@@ -35,169 +47,533 @@ export interface GarmentManifestItem {
   targetPosition: [number, number, number];
 }
 
-interface VietPhucGalleryProps {
+export interface VietPhucGalleryProps {
   embedded?: boolean;
   initialGarmentId?: string;
   onBackToStudio?: () => void;
   onRemixGarment?: (galleryId: string) => void;
 }
 
+const STUDIO_THEMES = {
+  warm: "#EAE4DC",
+  dark: "#161412",
+} as const;
+
+const CORRIDOR_BG = "#1A120E";
+
 // -----------------------------------------------------------------------------
-// MATH & GEOMETRY UTILITIES
+// MATH & GEOMETRY UTILITIES (BATTLE-TESTED 3D CORRIDOR ENGINE)
 // -----------------------------------------------------------------------------
 
-/**
- * Normalizes garment pivot to pedestal base and clamps front yaw to [-PI/2, +PI/2]
- * to prevent 180-degree flipped models.
- */
-function normalizePivotAndComputeFrontYaw(object: THREE.Object3D): {
-  center: THREE.Vector3;
-  baseOrigin: THREE.Vector3;
-  frontYaw: number;
-} {
-  const box = new THREE.Box3().setFromObject(object);
-  const center = new THREE.Vector3();
-  box.getCenter(center);
-  const baseOrigin = new THREE.Vector3(center.x, box.min.y, center.z);
+function computeOverviewArc(yaw: number, isPortrait: boolean) {
+  // Lùi về 7.55m (ngưỡng an toàn sát cửa hành lang, không bị lộ rìa sàn/mái)
+  const baseZ = isPortrait ? 7.55 : 7.6;
+  const camY = isPortrait ? 1.68 : 1.92;
 
-  // Derive default orientation from rotation modulo PI
-  let rawYaw = object.rotation.y;
-  // Reduce to [-PI/2, +PI/2] range
-  let frontYaw = rawYaw % Math.PI;
-  if (frontYaw > Math.PI / 2) frontYaw -= Math.PI;
-  if (frontYaw < -Math.PI / 2) frontYaw += Math.PI;
+  const camX = Math.sin(yaw) * 0.26;
+  const camZ = baseZ + (1 - Math.cos(yaw)) * 0.15;
 
-  return { center, baseOrigin, frontYaw };
+  const lookRadius = 8.5;
+  const targetX = Math.sin(yaw) * lookRadius;
+  const targetY = isPortrait ? 1.05 : 1.15;
+  const targetZ = camZ - Math.cos(yaw) * lookRadius;
+
+  return { camX, camY, camZ, targetX, targetY, targetZ };
 }
 
-/**
- * Computes camera framing for a garment:
- * FOV ~48, distance 2.1m - 2.45m, and horizontal offset ~0.28m on desktop
- * to achieve 2/3 (model) - 1/3 (info panel) layout.
- */
-function computeGarmentFraming(
-  pedestalOrigin: [number, number, number],
-  defaultCam: [number, number, number],
-  defaultTarget: [number, number, number],
-  isMobile: boolean
-): {
-  cameraPos: THREE.Vector3;
-  targetPos: THREE.Vector3;
-} {
-  const target = new THREE.Vector3(...defaultTarget);
-  const cam = new THREE.Vector3(...defaultCam);
-
-  // Horizontal offset: on desktop, shift target slightly to the left so model sits in left 2/3
-  if (!isMobile) {
-    const forward = new THREE.Vector3().subVectors(target, cam).setY(0).normalize();
-    const right = new THREE.Vector3(-forward.z, 0, forward.x);
-    // Shift target right by 0.28m so garment appears to the left of center
-    target.addScaledVector(right, -0.28);
-    cam.addScaledVector(right, -0.28);
+function findGarmentRoot(
+  root: THREE.Object3D,
+  g: GarmentManifestItem,
+): THREE.Object3D | null {
+  const exact = root.getObjectByName(g.meshName);
+  if (exact) {
+    let hasMesh = false;
+    exact.traverse((c) => {
+      if (c instanceof THREE.Mesh) hasMesh = true;
+    });
+    if (hasMesh) return exact;
   }
 
-  return { cameraPos: cam, targetPos: target };
-}
+  let matched: THREE.Object3D | null = null;
+  const prefix = g.meshName.toLowerCase();
+  root.traverse((obj) => {
+    if (matched) return;
+    const nameLower = obj.name.toLowerCase();
+    const isIdMatch = obj.userData?.garment_id === g.id;
+    const isPrefixMatch =
+      nameLower === prefix ||
+      nameLower.startsWith(prefix + "_") ||
+      nameLower.startsWith(prefix + ".");
 
-// -----------------------------------------------------------------------------
-// CAMERA CONTROLLER COMPONENT
-// -----------------------------------------------------------------------------
-
-function CameraRig({
-  targetPos,
-  targetLookAt,
-  isOrbiting,
-}: {
-  targetPos: THREE.Vector3;
-  targetLookAt: THREE.Vector3;
-  isOrbiting: boolean;
-}) {
-  const { camera } = useThree();
-  const currentLookAt = useRef(new THREE.Vector3(0, 1.2, -3.0));
-
-  useFrame((_, delta) => {
-    if (!isOrbiting) {
-      const step = Math.min(delta * 3.8, 1);
-      camera.position.lerp(targetPos, step);
-      currentLookAt.current.lerp(targetLookAt, step);
-      camera.lookAt(currentLookAt.current);
+    if (isIdMatch || isPrefixMatch) {
+      let hasMesh = false;
+      obj.traverse((c) => {
+        if (c instanceof THREE.Mesh) hasMesh = true;
+      });
+      if (hasMesh) {
+        matched = obj;
+      }
     }
   });
 
-  return null;
+  return matched;
+}
+
+/**
+ * Normalizes garment geometry pivot to the true pedestal center and computes
+ * PCA shoulder-axis alignment yaw clamped to [-PI/2, +PI/2] to prevent 180° flips.
+ */
+function normalizePivotAndComputeFrontYaw(obj: THREE.Object3D): {
+  pedestalPos: THREE.Vector3;
+  frontAlignYaw: number;
+} {
+  obj.updateWorldMatrix(true, true);
+  const box = new THREE.Box3().setFromObject(obj);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+
+  const pedPos = new THREE.Vector3(center.x, Math.max(0, box.min.y), center.z);
+
+  // Recenter geometry vertices if object origin is offset from pedestal center
+  const objWorldPos = new THREE.Vector3();
+  obj.getWorldPosition(objWorldPos);
+  if (Math.hypot(objWorldPos.x - pedPos.x, objWorldPos.z - pedPos.z) > 0.05) {
+    const localTarget = obj.worldToLocal(pedPos.clone());
+    obj.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.geometry) {
+        child.geometry = child.geometry.clone();
+        child.geometry.translate(
+          -localTarget.x,
+          -localTarget.y,
+          -localTarget.z,
+        );
+      }
+    });
+    if (obj.parent) {
+      obj.position.copy(obj.parent.worldToLocal(pedPos.clone()));
+    } else {
+      obj.position.copy(pedPos);
+    }
+    obj.updateWorldMatrix(true, true);
+  }
+
+  // 2D PCA on outer sleeve/shoulder vertices to find true shoulder axis
+  let sXX = 0;
+  let sZZ = 0;
+  let sXZ = 0;
+  let count = 0;
+  const vWorld = new THREE.Vector3();
+  const minY = box.min.y;
+
+  obj.traverse((child) => {
+    if (child instanceof THREE.Mesh && child.geometry) {
+      const posAttr = child.geometry.attributes.position;
+      if (!posAttr) return;
+      for (let i = 0; i < posAttr.count; i++) {
+        vWorld.fromBufferAttribute(posAttr, i).applyMatrix4(child.matrixWorld);
+        const relY = vWorld.y - minY;
+        if (relY >= 0.88 && relY <= 1.48) {
+          const dx = vWorld.x - pedPos.x;
+          const dz = vWorld.z - pedPos.z;
+          if (dx * dx + dz * dz > 0.068) {
+            sXX += dx * dx;
+            sZZ += dz * dz;
+            sXZ += dx * dz;
+            count++;
+          }
+        }
+      }
+    }
+  });
+
+  if (count < 6) {
+    return { pedestalPos: pedPos, frontAlignYaw: 0 };
+  }
+
+  const shoulderAngle = 0.5 * Math.atan2(2 * sXZ, sXX - sZZ);
+  const normalAngle = shoulderAngle + Math.PI * 0.5;
+  const nx = Math.cos(normalAngle);
+  const nz = Math.sin(normalAngle);
+
+  const toCamX = pedPos.x < -0.5 ? 1.0 : pedPos.x > 0.5 ? -1.0 : 0.0;
+  const toCamZ = Math.abs(pedPos.x) <= 0.5 ? 1.0 : 0.0;
+
+  const currentFrontAzimuth = Math.atan2(nx, nz);
+  const desiredCamAzimuth = Math.atan2(toCamX, toCamZ);
+
+  let deltaYaw = desiredCamAzimuth - currentFrontAzimuth;
+  while (deltaYaw > Math.PI * 0.5) deltaYaw -= Math.PI;
+  while (deltaYaw < -Math.PI * 0.5) deltaYaw += Math.PI;
+
+  return { pedestalPos: pedPos, frontAlignYaw: deltaYaw };
+}
+
+/**
+ * Adaptive framing for Desktop (2/3 model - 1/3 info card) and Mobile Portrait
+ * (shifts target downward when bottom drawer is open so model sits in upper viewport).
+ */
+function computeGarmentFraming(
+  pedestalPos: THREE.Vector3,
+  isPortrait: boolean,
+  isInfoOpen: boolean,
+  inStudio: boolean,
+) {
+  const targetY = pedestalPos.y + 0.98;
+  const camY = pedestalPos.y + 1.08;
+
+  const dist = isPortrait
+    ? isInfoOpen && !inStudio
+      ? 2.85 // Cũ là 2.45 (khi mở bảng thuyết minh trên Mobile)
+      : 2.65 // Cũ là 2.1 (khi thu gọn thuyết minh như trong ảnh của bạn)
+    : inStudio
+      ? 2.55 // Cũ là 2.1
+      : 2.65; // Cũ là 2.15 (trên Desktop)
+
+  const baseTarget = new THREE.Vector3(pedestalPos.x, targetY, pedestalPos.z);
+  const baseCam = new THREE.Vector3();
+
+  if (pedestalPos.x < -0.5) {
+    baseCam.set(pedestalPos.x + dist, camY, pedestalPos.z);
+  } else if (pedestalPos.x > 0.5) {
+    baseCam.set(pedestalPos.x - dist, camY, pedestalPos.z);
+  } else {
+    baseCam.set(pedestalPos.x, camY + 0.04, pedestalPos.z + dist * 1.06);
+  }
+
+  const forward = new THREE.Vector3()
+    .subVectors(baseTarget, baseCam)
+    .normalize();
+  const up = new THREE.Vector3(0, 1, 0);
+  const rightVec = new THREE.Vector3().crossVectors(forward, up).normalize();
+
+  // Desktop 2/3 - 1/3 shift when info card is open
+  const desktopThirdsShift =
+    !isPortrait && isInfoOpen && !inStudio ? 0.28 : 0.0;
+
+  baseCam.addScaledVector(rightVec, desktopThirdsShift);
+  baseTarget.addScaledVector(rightVec, desktopThirdsShift);
+
+  // Mobile Portrait: shift camera look-at downward so garment sits above bottom drawer
+  if (isPortrait && !inStudio) {
+    baseTarget.y += isInfoOpen ? -0.32 : -0.02;
+  }
+
+  return {
+    cam: [baseCam.x, baseCam.y, baseCam.z] as [number, number, number],
+    target: [baseTarget.x, baseTarget.y, baseTarget.z] as [
+      number,
+      number,
+      number,
+    ],
+  };
 }
 
 // -----------------------------------------------------------------------------
-// 3D MODEL & SCENE CONTENT
+// 3D SCENE CONTENT (GLB + CAMERA CONTROLS + STUDIO ISOLATION)
 // -----------------------------------------------------------------------------
 
 function SceneContent({
   glbUrl,
-  selectedId,
+  activeId,
   isStudio360,
-  garmentRotation,
+  isInfoOpen,
+  studioTheme,
   garments,
-  isMobile,
+  targetYawRef,
+  overviewYawRef,
+  dragDistanceRef,
+  onSelectGarment,
 }: {
   glbUrl: string;
-  selectedId: string;
+  activeId: string;
   isStudio360: boolean;
-  garmentRotation: number;
+  isInfoOpen: boolean;
+  studioTheme: "warm" | "dark";
   garments: GarmentManifestItem[];
-  isMobile: boolean;
+  targetYawRef: React.MutableRefObject<number>;
+  overviewYawRef: React.MutableRefObject<number>;
+  dragDistanceRef: React.MutableRefObject<number>;
+  onSelectGarment: (id: string) => void;
 }) {
-  const { scene } = useGLTF(glbUrl);
-  const activeGarment = useMemo(() => garments.find(g => g.id === selectedId), [garments, selectedId]);
+  const { scene: gltfScene } = useGLTF(glbUrl);
+  const { size } = useThree();
+  const controlsRef = useRef<CameraControls>(null);
+  const appliedOverviewYawRef = useRef<number>(0);
+  const hasInitializedRef = useRef<boolean>(false);
 
-  // Clone or configure scene nodes
-  useEffect(() => {
-    if (!scene) return;
+  const isPortrait = size.width < size.height;
+  const activeGarment = useMemo(
+    () => garments.find((g) => g.id === activeId) || null,
+    [garments, activeId],
+  );
 
-    scene.traverse(node => {
-      if ((node as THREE.Mesh).isMesh) {
-        node.castShadow = true;
-        node.receiveShadow = true;
+  const inStudio = isStudio360 && activeGarment !== null;
+  const bgColor = inStudio ? STUDIO_THEMES[studioTheme] : CORRIDOR_BG;
 
-        const mesh = node as THREE.Mesh;
-        if (mesh.material) {
-          const mat = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-          mat.forEach(m => {
-            if (m instanceof THREE.MeshStandardMaterial) {
-              m.envMapIntensity = 1.2;
-              m.roughness = Math.max(0.35, m.roughness);
-            }
-          });
-        }
+  const garmentRootsRef = useRef<Record<string, THREE.Object3D>>({});
+  const initialRotations = useRef<Record<string, number>>({});
+  const frontAlignOffsets = useRef<Record<string, number>>({});
+  const truePedestalPositions = useRef<Record<string, THREE.Vector3>>({});
+
+  const [pedestalCoords, setPedestalCoords] = useState<
+    Record<string, [number, number, number]>
+  >({});
+
+  const ensureGarmentMetrics = (g: GarmentManifestItem) => {
+    if (!truePedestalPositions.current[g.meshName]) {
+      const rootObj = findGarmentRoot(gltfScene, g);
+      if (rootObj) {
+        garmentRootsRef.current[g.meshName] = rootObj;
+        initialRotations.current[g.meshName] = rootObj.rotation.y;
+        const { pedestalPos, frontAlignYaw } =
+          normalizePivotAndComputeFrontYaw(rootObj);
+        truePedestalPositions.current[g.meshName] = pedestalPos;
+        frontAlignOffsets.current[g.meshName] = frontAlignYaw;
       }
-
-      // Hide other backdrops / meshes in isolated Studio 360 mode
-      if (isStudio360 && activeGarment) {
-        if (node.name.startsWith('ENV_Backdrop_')) {
-          node.visible = node.name === activeGarment.backdropName;
-        } else if (node.name.startsWith('GARMENT_')) {
-          node.visible = node.name === activeGarment.meshName;
-        }
-      } else {
-        node.visible = true;
-      }
-    });
-  }, [scene, isStudio360, activeGarment]);
-
-  // Apply user 360 rotation to the selected garment mesh
-  useEffect(() => {
-    if (!scene || !activeGarment) return;
-
-    const garmentNode = scene.getObjectByName(activeGarment.meshName);
-    if (garmentNode) {
-      garmentNode.rotation.y = garmentRotation;
     }
-  }, [scene, activeGarment, garmentRotation]);
+    return (
+      truePedestalPositions.current[g.meshName] ||
+      new THREE.Vector3(...g.pedestalOrigin)
+    );
+  };
+
+  useEffect(() => {
+    gltfScene.updateMatrixWorld(true);
+    const nextCoords: Record<string, [number, number, number]> = {};
+    garments.forEach((g) => {
+      const pos = ensureGarmentMetrics(g);
+      nextCoords[g.meshName] = [pos.x, pos.y, pos.z];
+    });
+    setPedestalCoords(nextCoords);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gltfScene, garments]);
+
+  // Complete Hierarchy Isolation in Studio 360° Mode
+  useEffect(() => {
+    if (!inStudio || !activeGarment) {
+      gltfScene.traverse((obj) => {
+        obj.visible = true;
+      });
+      return;
+    }
+
+    const targetRoot =
+      garmentRootsRef.current[activeGarment.meshName] ||
+      findGarmentRoot(gltfScene, activeGarment);
+
+    if (!targetRoot) return;
+
+    const visibleSet = new Set<THREE.Object3D>();
+    targetRoot.traverse((child) => {
+      visibleSet.add(child);
+    });
+    let parent: THREE.Object3D | null = targetRoot.parent;
+    while (parent) {
+      visibleSet.add(parent);
+      parent = parent.parent;
+    }
+
+    gltfScene.traverse((obj) => {
+      obj.visible = visibleSet.has(obj);
+    });
+  }, [inStudio, activeGarment, gltfScene]);
+
+  // Smooth Camera Transitions & Adaptive Framing
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    void controls.zoomTo(1, true);
+
+    if (activeId === "overview" || !activeGarment) {
+      overviewYawRef.current = 0;
+      appliedOverviewYawRef.current = 0;
+      const { camX, camY, camZ, targetX, targetY, targetZ } =
+        computeOverviewArc(0, isPortrait);
+      const shouldTransition = hasInitializedRef.current;
+      hasInitializedRef.current = true;
+      void controls.setLookAt(
+        camX,
+        camY,
+        camZ,
+        targetX,
+        targetY,
+        targetZ,
+        shouldTransition,
+      );
+      targetYawRef.current = 0;
+    } else {
+      hasInitializedRef.current = true;
+      const realPos = ensureGarmentMetrics(activeGarment);
+      const { cam, target } = computeGarmentFraming(
+        realPos,
+        isPortrait,
+        isInfoOpen,
+        inStudio,
+      );
+
+      void controls.setLookAt(
+        cam[0],
+        cam[1],
+        cam[2],
+        target[0],
+        target[1],
+        target[2],
+        true,
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    activeId,
+    activeGarment,
+    inStudio,
+    isPortrait,
+    isInfoOpen,
+    gltfScene,
+    targetYawRef,
+    overviewYawRef,
+  ]);
+
+  // Frame loop: damp overview look-around and damp individual pedestal rotations
+  useFrame((_, delta) => {
+    if (activeId === "overview" && !inStudio && controlsRef.current) {
+      const diff = overviewYawRef.current - appliedOverviewYawRef.current;
+      if (Math.abs(diff) > 0.0001) {
+        appliedOverviewYawRef.current = THREE.MathUtils.damp(
+          appliedOverviewYawRef.current,
+          overviewYawRef.current,
+          8,
+          delta,
+        );
+        const { camX, camY, camZ, targetX, targetY, targetZ } =
+          computeOverviewArc(appliedOverviewYawRef.current, isPortrait);
+        void controlsRef.current.setLookAt(
+          camX,
+          camY,
+          camZ,
+          targetX,
+          targetY,
+          targetZ,
+          false,
+        );
+      }
+    }
+
+    garments.forEach((g) => {
+      const obj =
+        garmentRootsRef.current[g.meshName] || findGarmentRoot(gltfScene, g);
+      if (!obj) return;
+
+      const baseRot = initialRotations.current[g.meshName] ?? obj.rotation.y;
+      const alignOffset = frontAlignOffsets.current[g.meshName] ?? 0;
+
+      const desiredRot =
+        g.id === activeId
+          ? baseRot + alignOffset + (isStudio360 ? 0 : targetYawRef.current)
+          : baseRot;
+
+      obj.rotation.y = THREE.MathUtils.damp(
+        obj.rotation.y,
+        desiredRot,
+        6.5,
+        delta,
+      );
+    });
+  });
+
+  // Click on any garment in 3D scene to fly directly to it
+  const handleSceneClick = (e: ThreeEvent<MouseEvent>) => {
+    if (isStudio360 || dragDistanceRef.current > 8) return;
+    e.stopPropagation();
+
+    let curr: THREE.Object3D | null = e.object;
+    while (curr) {
+      if (typeof curr.userData?.garment_id === "string") {
+        onSelectGarment(curr.userData.garment_id);
+        return;
+      }
+      const nameLower = curr.name.toLowerCase();
+      const matched = garments.find((g) => {
+        const prefix = g.meshName.toLowerCase();
+        return (
+          nameLower === prefix ||
+          nameLower.startsWith(prefix + "_") ||
+          nameLower.startsWith(prefix + ".")
+        );
+      });
+      if (matched) {
+        onSelectGarment(matched.id);
+        return;
+      }
+      curr = curr.parent;
+    }
+  };
+
+  const activeCoords = activeGarment
+    ? pedestalCoords[activeGarment.meshName] || activeGarment.pedestalOrigin
+    : null;
 
   return (
-    <primitive 
-      object={scene} 
-      position={[0, 0, 0]} 
-    />
+    <>
+      <color attach="background" args={[bgColor]} />
+      {!inStudio && <fogExp2 attach="fog" args={[CORRIDOR_BG, 0.045]} />}
+
+      <CameraControls
+        ref={controlsRef}
+        smoothTime={0.55}
+        mouseButtons={{
+          left: inStudio
+            ? CameraControlsImpl.ACTION.ROTATE
+            : CameraControlsImpl.ACTION.NONE,
+          middle: CameraControlsImpl.ACTION.ZOOM,
+          right: CameraControlsImpl.ACTION.NONE,
+          wheel: CameraControlsImpl.ACTION.ZOOM,
+        }}
+        touches={{
+          one: inStudio
+            ? CameraControlsImpl.ACTION.TOUCH_ROTATE
+            : CameraControlsImpl.ACTION.NONE,
+          two: CameraControlsImpl.ACTION.TOUCH_ZOOM,
+          three: CameraControlsImpl.ACTION.NONE,
+        }}
+        minZoom={0.8}
+        maxZoom={2.4}
+        minPolarAngle={Math.PI * 0.18}
+        maxPolarAngle={Math.PI * 0.55}
+      />
+
+      <Environment
+        preset={inStudio ? "studio" : "apartment"}
+        environmentIntensity={inStudio ? 0.9 : 0.55}
+      />
+      <ambientLight intensity={inStudio ? 0.55 : 0.38} />
+
+      {activeCoords && (
+        <spotLight
+          position={[
+            activeCoords[0] + (activeCoords[0] < 0 ? 1.5 : -1.5),
+            activeCoords[1] + 2.4,
+            activeCoords[2] + 1.1,
+          ]}
+          intensity={inStudio ? 2.6 : 3.2}
+          color={inStudio ? "#FFFDF8" : "#FFE0B2"}
+          angle={0.65}
+          penumbra={0.85}
+        />
+      )}
+
+      {inStudio && activeCoords && (
+        <ContactShadows
+          position={[activeCoords[0], activeCoords[1] + 0.005, activeCoords[2]]}
+          opacity={0.42}
+          scale={4.5}
+          blur={2.2}
+          frames={1}
+        />
+      )}
+
+      <primitive object={gltfScene} onClick={handleSceneClick} />
+    </>
   );
 }
 
@@ -206,78 +582,77 @@ function ProceduralShowroomFallback({
   garments,
   selectedId,
   isStudio360,
-  garmentRotation,
+  targetYawRef,
 }: {
   garments: GarmentManifestItem[];
   selectedId: string;
   isStudio360: boolean;
-  garmentRotation: number;
+  targetYawRef: React.MutableRefObject<number>;
 }) {
+  const groupRefs = useRef<Record<string, THREE.Group | null>>({});
+
+  useFrame((_, delta) => {
+    garments.forEach((g) => {
+      const grp = groupRefs.current[g.id];
+      if (!grp) return;
+      const desired =
+        g.id === selectedId && !isStudio360 ? targetYawRef.current : 0;
+      grp.rotation.y = THREE.MathUtils.damp(
+        grp.rotation.y,
+        desired,
+        6.5,
+        delta,
+      );
+    });
+  });
+
   return (
     <group>
-      {/* Heritage Courtyard Floor */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
+      <ambientLight intensity={0.85} color="#fff6e5" />
+      <directionalLight position={[5, 9, 6]} intensity={1.4} color="#ffeedd" />
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.01, 0]}
+        receiveShadow
+      >
         <planeGeometry args={[24, 30]} />
         <meshStandardMaterial color="#211814" roughness={0.7} metalness={0.1} />
       </mesh>
 
-      {/* Decorative Red Wooden Columns along the imperial hall */}
-      {[-3.5, 3.5].map((x, colIdx) =>
-        [-8, -4, 0, 4, 8].map((z, rowIdx) => (
-          <mesh key={`col_${colIdx}_${rowIdx}`} position={[x, 2.5, z]} castShadow>
-            <cylinderGeometry args={[0.22, 0.25, 5, 24]} />
-            <meshStandardMaterial color="#8b1e1e" roughness={0.4} metalness={0.2} />
-          </mesh>
-        ))
-      )}
-
-      {/* 5 Garment Display Pedestals */}
       {garments.map((g) => {
         const isSelected = g.id === selectedId;
         if (isStudio360 && !isSelected) return null;
-
         const [px, py, pz] = g.pedestalOrigin;
-        const rotY = isSelected ? garmentRotation : 0;
 
         return (
-          <group key={g.id} position={[px, py, pz]}>
-            {/* Wooden Base Plinth */}
-            <mesh position={[0, 0.12, 0]} castShadow receiveShadow>
+          <group
+            key={g.id}
+            position={[px, py, pz]}
+            ref={(el) => {
+              groupRefs.current[g.id] = el;
+            }}
+          >
+            <mesh position={[0, 0.12, 0]}>
               <cylinderGeometry args={[0.9, 0.98, 0.24, 32]} />
               <meshStandardMaterial color="#3e2723" roughness={0.5} />
             </mesh>
-            {/* Gold Rim */}
-            <mesh position={[0, 0.24, 0]}>
-              <torusGeometry args={[0.88, 0.02, 16, 32]} />
-              <meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.2} />
-            </mesh>
-
-            {/* Stand Pole */}
-            <mesh position={[0, 0.9, 0]} castShadow>
-              <cylinderGeometry args={[0.04, 0.04, 1.3, 16]} />
-              <meshStandardMaterial color="#212121" metalness={0.7} />
-            </mesh>
-
-            {/* Garment Form Silhouette */}
-            <group position={[0, 1.25, 0]} rotation={[0, rotY, 0]}>
-              {/* Torso */}
-              <mesh castShadow>
+            <group position={[0, 1.25, 0]}>
+              <mesh>
                 <coneGeometry args={[0.42, 1.1, 24]} />
-                <meshStandardMaterial 
+                <meshStandardMaterial
                   color={
-                    g.id === 'giao_linh' ? '#8b1e1e' :
-                    g.id === 'tu_than' ? '#6b4226' :
-                    g.id === 'ngu_than' ? '#1e3a8a' :
-                    g.id === 'ao_dai' ? '#ec4899' :
-                    '#b91c1c'
-                  } 
-                  roughness={0.45} 
+                    g.id === "giao_linh"
+                      ? "#2A7B76"
+                      : g.id === "tu_than"
+                        ? "#6b4226"
+                        : g.id === "ngu_than"
+                          ? "#1e3a8a"
+                          : g.id === "ao_dai"
+                            ? "#ec4899"
+                            : "#d97706"
+                  }
+                  roughness={0.45}
                 />
-              </mesh>
-              {/* Head / Collar */}
-              <mesh position={[0, 0.65, 0]} castShadow>
-                <sphereGeometry args={[0.16, 24, 24]} />
-                <meshStandardMaterial color="#e5c06e" metalness={0.6} roughness={0.3} />
               </mesh>
             </group>
           </group>
@@ -293,22 +668,39 @@ function ProceduralShowroomFallback({
 
 export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
   embedded = false,
-  initialGarmentId = 'overview',
+  initialGarmentId = "overview",
   onBackToStudio,
   onRemixGarment,
 }) => {
-  const garments = manifestData.garments as GarmentManifestItem[];
+  const garments = useMemo(
+    () =>
+      [...(manifestData.garments as GarmentManifestItem[])].sort(
+        (a, b) => a.tourOrder - b.tourOrder,
+      ),
+    [],
+  );
 
   const [selectedId, setSelectedId] = useState<string>(initialGarmentId);
   const [isStudio360, setIsStudio360] = useState<boolean>(false);
-  const [garmentRotation, setGarmentRotation] = useState<number>(0);
-  const [isOrbiting, setIsOrbiting] = useState<boolean>(false);
+  const [studioTheme, setStudioTheme] = useState<"warm" | "dark">("warm");
+  const [viewingSide, setViewingSide] = useState<"front" | "back">("front");
   const [isInfoOpen, setIsInfoOpen] = useState<boolean>(true);
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
+  // Refs for smooth pointer drag rotation & overview arc
+  const targetYawRef = useRef<number>(0);
+  const overviewYawRef = useRef<number>(0);
+  const isDraggingRef = useRef<boolean>(false);
+  const prevXRef = useRef<number>(0);
+  const dragDistanceRef = useRef<number>(0);
+
   // GLB Model verification & dynamic upload state
-  const [glbUrl, setGlbUrl] = useState<string | null>(null);
-  const [glbStatus, setGlbStatus] = useState<'checking' | 'ready' | 'missing'>('checking');
+  const [glbUrl, setGlbUrl] = useState<string | null>(
+    "/models/viet_phuc_gallery.glb",
+  );
+  const [glbStatus, setGlbStatus] = useState<"checking" | "ready" | "missing">(
+    "ready",
+  );
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -316,37 +708,44 @@ export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   // Sync initialGarmentId if prop changes
   useEffect(() => {
     if (initialGarmentId) {
       setSelectedId(initialGarmentId);
+      setViewingSide("front");
+      targetYawRef.current = 0;
+      if (initialGarmentId === "overview") {
+        setIsStudio360(false);
+      }
     }
   }, [initialGarmentId]);
 
-  // Check if GLB exists on server or needs client upload
+  // Verify GLB exists on server
   useEffect(() => {
     let isMounted = true;
     const checkGlb = async () => {
       try {
-        const res = await fetch('/models/viet_phuc_gallery.glb', { method: 'HEAD' });
-        const contentType = res.headers.get('content-type') || '';
-        if (res.ok && !contentType.includes('text/html')) {
+        const res = await fetch("/models/viet_phuc_gallery.glb", {
+          method: "HEAD",
+        });
+        const contentType = res.headers.get("content-type") || "";
+        if (res.ok && !contentType.includes("text/html")) {
           if (isMounted) {
-            setGlbUrl('/models/viet_phuc_gallery.glb');
-            setGlbStatus('ready');
+            setGlbUrl("/models/viet_phuc_gallery.glb");
+            setGlbStatus("ready");
           }
         } else {
           if (isMounted) {
-            setGlbStatus('missing');
+            setGlbStatus("missing");
           }
         }
       } catch {
         if (isMounted) {
-          setGlbStatus('missing');
+          setGlbStatus("missing");
         }
       }
     };
@@ -356,143 +755,190 @@ export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
     };
   }, []);
 
-  // Handle file upload
+  // Handle file upload fallback
   const handleFileUpload = useCallback(async (file: File) => {
     if (!file) return;
     setUploadError(null);
     setIsUploading(true);
 
     try {
-      // 1. Instantly create object URL for zero-wait 3D preview
       const objectUrl = URL.createObjectURL(file);
       setGlbUrl(objectUrl);
-      setGlbStatus('ready');
+      setGlbStatus("ready");
 
-      // 2. Upload binary to backend server to persist permanently
       const arrayBuffer = await file.arrayBuffer();
-      const res = await fetch('/api/upload-glb', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/octet-stream' },
+      const res = await fetch("/api/upload-glb", {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
         body: arrayBuffer,
       });
 
       if (!res.ok) {
-        console.warn('Backend failed to persist GLB permanently, fallback to memory URL');
+        console.warn(
+          "Backend failed to persist GLB permanently, using memory URL",
+        );
       }
-    } catch (err: any) {
-      console.error('GLB upload failed:', err);
-      setUploadError(err.message || 'Không thể nạp tệp mô hình 3D.');
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Không thể nạp tệp mô hình 3D.";
+      setUploadError(message);
     } finally {
       setIsUploading(false);
     }
   }, []);
 
-  const currentGarment = useMemo(() => {
-    return garments.find(g => g.id === selectedId) || null;
-  }, [garments, selectedId]);
-
-  // Compute camera positions
-  const { targetCameraPos, targetLookAt } = useMemo(() => {
-    if (selectedId === 'overview' || !currentGarment) {
-      return {
-        targetCameraPos: new THREE.Vector3(...manifestData.overview.cameraPosition),
-        targetLookAt: new THREE.Vector3(...manifestData.overview.targetPosition),
-      };
-    }
-    const framing = computeGarmentFraming(
-      currentGarment.pedestalOrigin,
-      currentGarment.cameraPosition,
-      currentGarment.targetPosition,
-      isMobile
-    );
-    return {
-      targetCameraPos: framing.cameraPos,
-      targetLookAt: framing.targetPos,
-    };
-  }, [selectedId, currentGarment, isMobile]);
+  const currentGarment = useMemo(
+    () => garments.find((g) => g.id === selectedId) || null,
+    [garments, selectedId],
+  );
 
   // Navigate between garments
-  const handleSelectGarment = (id: string) => {
+  const handleSelectGarment = useCallback((id: string) => {
     setSelectedId(id);
-    setGarmentRotation(0);
-    setIsOrbiting(false);
-    if (id !== 'overview') {
-      setIsInfoOpen(true);
+    setViewingSide("front");
+    targetYawRef.current = 0;
+    if (id === "overview") {
+      setIsStudio360(false);
     }
+  }, []);
+
+  const rotateToSide = (side: "front" | "back") => {
+    setViewingSide(side);
+    targetYawRef.current = side === "front" ? 0 : Math.PI;
   };
 
   const handleNextGarment = () => {
-    if (selectedId === 'overview') {
+    if (selectedId === "overview") {
       handleSelectGarment(garments[0].id);
       return;
     }
-    const idx = garments.findIndex(g => g.id === selectedId);
+    const idx = garments.findIndex((g) => g.id === selectedId);
     const nextIdx = (idx + 1) % garments.length;
     handleSelectGarment(garments[nextIdx].id);
   };
 
   const handlePrevGarment = () => {
-    if (selectedId === 'overview') {
+    if (selectedId === "overview") {
       handleSelectGarment(garments[garments.length - 1].id);
       return;
     }
-    const idx = garments.findIndex(g => g.id === selectedId);
+    const idx = garments.findIndex((g) => g.id === selectedId);
     const prevIdx = (idx - 1 + garments.length) % garments.length;
     handleSelectGarment(garments[prevIdx].id);
   };
 
+  // Pointer drag handlers for rotating pedestal or panning overview
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (isStudio360) return;
+    isDraggingRef.current = true;
+    prevXRef.current = e.clientX;
+    dragDistanceRef.current = 0;
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDraggingRef.current || isStudio360) return;
+    const deltaX = e.clientX - prevXRef.current;
+    prevXRef.current = e.clientX;
+    dragDistanceRef.current += Math.abs(deltaX);
+
+    if (selectedId === "overview") {
+      const maxArc = isMobile ? 0.46 : 0.28;
+      overviewYawRef.current = THREE.MathUtils.clamp(
+        overviewYawRef.current - deltaX * 0.0035,
+        -maxArc,
+        maxArc,
+      );
+    } else {
+      targetYawRef.current += deltaX * 0.012;
+      const norm = Math.abs(targetYawRef.current % (Math.PI * 2));
+      setViewingSide(
+        norm > Math.PI * 0.5 && norm < Math.PI * 1.5 ? "back" : "front",
+      );
+    }
+  };
+
+  const handlePointerUp = () => {
+    isDraggingRef.current = false;
+  };
+
   return (
-    <div className="relative w-full h-full min-h-[500px] overflow-hidden bg-[#120c09] text-stone-100 select-none flex flex-col font-sans">
-      {/* --- TOP BAR CONTROLS --- */}
-      <header className="absolute top-0 left-0 right-0 z-40 p-3 sm:p-4 flex items-center justify-between pointer-events-none">
+    <div
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      style={{ touchAction: "none" }}
+      className={`relative min-h-0 w-full ${
+        embedded ? "h-[min(620px,100dvh)] max-h-full" : "h-full max-h-full"
+      } overflow-hidden bg-[#1A120E] text-stone-100 select-none flex flex-col font-sans isolate ${
+        selectedId === "overview"
+          ? "cursor-grab active:cursor-grabbing"
+          : "cursor-default"
+      }`}
+    >
+      {/* --- TOP BAR CONTROLS (MOBILE-OPTIMIZED) --- */}
+      <header
+        onPointerDown={(e) => e.stopPropagation()}
+        className="absolute top-0 left-0 right-0 z-30 p-2.5 sm:p-4 flex items-center justify-between gap-2 pointer-events-none"
+      >
         {/* Left: Back to Studio CTA */}
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto shrink-0">
           {onBackToStudio && (
             <button
+              type="button"
               onClick={onBackToStudio}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-stone-900/85 hover:bg-stone-800 backdrop-blur-md border border-amber-600/40 text-amber-200 text-xs font-medium shadow-xl transition-all hover:scale-105 active:scale-95 group"
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-full bg-stone-900/85 hover:bg-stone-800 backdrop-blur-md border border-amber-600/40 text-amber-200 text-[11px] sm:text-xs font-medium shadow-xl transition-all active:scale-95 group"
             >
               <ArrowLeft className="w-3.5 h-3.5 text-amber-400 group-hover:-translate-x-0.5 transition-transform" />
-              <span>← Về Bàn Phối 2D</span>
+              <span className="hidden xs:inline sm:inline">Về Bàn Phối 2D</span>
+              <span className="xs:hidden sm:hidden">Phối 2D</span>
             </button>
           )}
         </div>
 
         {/* Center: Tour Step Badge */}
-        <div className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-900/80 backdrop-blur-md border border-stone-800 text-xs">
-          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-          <span className="font-royal text-amber-300 font-semibold tracking-wide">
-            {selectedId === 'overview' ? 'Toàn Cảnh Hành Lang' : currentGarment?.title}
+        <div className="pointer-events-auto flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-stone-900/85 backdrop-blur-md border border-stone-800 text-[11px] sm:text-xs max-w-[52vw] sm:max-w-none truncate">
+          <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+          <span className="font-royal text-amber-300 font-semibold tracking-wide truncate">
+            {selectedId === "overview"
+              ? "Toàn Cảnh Hành Lang"
+              : currentGarment?.title}
           </span>
-          <span className="text-stone-500">•</span>
-          <span className="text-[11px] text-stone-400 font-serif italic">
-            {selectedId === 'overview' ? '5 Tuyệt Tác' : `Bục ${currentGarment?.tourOrder}/5`}
+          <span className="text-stone-500 hidden sm:inline">•</span>
+          <span className="text-[10px] sm:text-[11px] text-stone-400 font-serif italic shrink-0 hidden sm:inline">
+            {selectedId === "overview"
+              ? "5 Tuyệt Tác"
+              : `Bục ${currentGarment?.tourOrder}/5`}
           </span>
         </div>
 
         {/* Right: Studio 360 & View Mode Toggle */}
-        <div className="pointer-events-auto flex items-center gap-2">
+        <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 shrink-0">
           {currentGarment && (
             <button
-              onClick={() => setIsStudio360(prev => !prev)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+              type="button"
+              onClick={() => setIsStudio360((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-medium border transition-all ${
                 isStudio360
-                  ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-lg ring-1 ring-amber-400/50'
-                  : 'bg-stone-900/80 border-stone-700 text-stone-300 hover:text-white hover:bg-stone-800'
+                  ? "bg-amber-500 text-stone-950 border-amber-400 font-semibold shadow-lg"
+                  : "bg-stone-900/85 border-stone-700 text-stone-300 hover:text-white hover:bg-stone-800"
               }`}
               title="Cô lập bục trưng bày và xoay 360 độ"
             >
               <Eye className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Studio 360°</span>
+              <span className="hidden md:inline">
+                {isStudio360 ? "← Hành Lang" : "Studio 360°"}
+              </span>
+              <span className="md:hidden">360°</span>
             </button>
           )}
 
           <button
-            onClick={() => handleSelectGarment('overview')}
-            className={`p-2 rounded-full border transition-all ${
-              selectedId === 'overview'
-                ? 'bg-amber-500 text-stone-950 border-amber-400'
-                : 'bg-stone-900/80 border-stone-700 text-stone-400 hover:text-white'
+            type="button"
+            onClick={() => handleSelectGarment("overview")}
+            className={`p-1.5 sm:p-2 rounded-full border transition-all ${
+              selectedId === "overview"
+                ? "bg-amber-500 text-stone-950 border-amber-400"
+                : "bg-stone-900/85 border-stone-700 text-stone-400 hover:text-white"
             }`}
             title="Xem toàn cảnh 3D"
           >
@@ -502,10 +948,12 @@ export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
       </header>
 
       {/* --- MAIN 3D CANVAS VIEWPORT --- */}
-      <div className="relative flex-1 w-full h-full">
-        {glbStatus === 'missing' && !glbUrl ? (
-          // Elegant dark heritage missing-model uploader
-          <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-[#140e0b]">
+      <div className="flex-1 min-h-0 relative overflow-hidden w-full">
+        {glbStatus === "missing" && !glbUrl ? (
+          <div
+            onPointerDown={(e) => e.stopPropagation()}
+            className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-[#140e0b]"
+          >
             <div className="max-w-md w-full p-6 sm:p-8 rounded-3xl bg-[#1c1410] border border-amber-900/50 shadow-2xl text-center space-y-4 text-stone-200">
               <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
                 <Upload className="w-7 h-7" />
@@ -516,7 +964,11 @@ export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
                   Hành Lang Di Sản 3D
                 </h3>
                 <p className="text-xs text-stone-400 mt-1">
-                  Chưa tìm thấy tệp mô hình không gian <code className="text-amber-300 bg-amber-950/60 px-1 py-0.5 rounded">viet_phuc_gallery.glb</code> trên máy chủ.
+                  Chưa tìm thấy tệp mô hình không gian{" "}
+                  <code className="text-amber-300 bg-amber-950/60 px-1 py-0.5 rounded">
+                    viet_phuc_gallery.glb
+                  </code>{" "}
+                  trên máy chủ.
                 </p>
               </div>
 
@@ -529,7 +981,7 @@ export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
                     type="file"
                     accept=".glb,.gltf"
                     className="hidden"
-                    onChange={e => {
+                    onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) handleFileUpload(file);
                     }}
@@ -557,8 +1009,8 @@ export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setGlbUrl('procedural_fallback');
-                  setGlbStatus('ready');
+                  setGlbUrl("procedural_fallback");
+                  setGlbStatus("ready");
                 }}
                 className="text-stone-400 hover:text-stone-200 text-xs underline underline-offset-4"
               >
@@ -568,71 +1020,45 @@ export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
           </div>
         ) : (
           <Canvas
-            shadows
-            camera={{ fov: 48, position: manifestData.overview.cameraPosition as [number, number, number] }}
+            camera={{
+              fov: 48,
+              position: manifestData.overview.cameraPosition as [
+                number,
+                number,
+                number,
+              ],
+            }}
+            dpr={[1, 1.5]}
             className="w-full h-full"
           >
-            {/* Ambient & Imperial Lantern Lighting */}
-            <ambientLight intensity={isStudio360 ? 0.7 : 0.85} color="#fff6e5" />
-            
-            {/* Main Hall Warm Directional Keylight */}
-            <directionalLight
-              position={[5, 9, 6]}
-              intensity={1.4}
-              castShadow
-              shadow-mapSize-width={2048}
-              shadow-mapSize-height={2048}
-              shadow-camera-near={0.5}
-              shadow-camera-far={25}
-              shadow-camera-left={-8}
-              shadow-camera-right={8}
-              shadow-camera-top={8}
-              shadow-camera-bottom={-8}
-              color="#ffeedd"
-            />
-
-            {/* Subtle Imperial Blue/Cold Backlight for Depth */}
-            <directionalLight position={[-6, 7, -6]} intensity={0.4} color="#7dd3fc" />
-
-            {/* Warm Lantern Accent Point Lights */}
-            <pointLight position={[0, 3.2, 2]} intensity={0.8} color="#f59e0b" distance={8} />
-            <pointLight position={[0, 3.2, -4]} intensity={0.8} color="#f59e0b" distance={8} />
-
-            {/* Camera transition controller */}
-            <CameraRig
-              targetPos={targetCameraPos}
-              targetLookAt={targetLookAt}
-              isOrbiting={isOrbiting}
-            />
-
-            {/* OrbitControls when user wants to freely examine or rotate */}
-            <OrbitControls
-              enabled={isOrbiting || isStudio360}
-              target={targetLookAt}
-              maxPolarAngle={Math.PI / 2 + 0.05} // don't go below floor
-              minDistance={1.2}
-              maxDistance={12}
-              enableDamping
-              dampingFactor={0.06}
-            />
-
-            {/* 3D Scene Content with Suspense */}
-            <Suspense fallback={null}>
-              {glbUrl && glbUrl !== 'procedural_fallback' ? (
+            <Suspense
+              fallback={
+                <Html center>
+                  <div className="px-4 py-2.5 rounded-xl bg-[#1A120E]/95 text-amber-100 text-xs sm:text-sm border border-amber-500/40 whitespace-nowrap shadow-xl">
+                    Đang tải mô hình 3D Việt phục...
+                  </div>
+                </Html>
+              }
+            >
+              {glbUrl && glbUrl !== "procedural_fallback" ? (
                 <SceneContent
                   glbUrl={glbUrl}
-                  selectedId={selectedId}
+                  activeId={selectedId}
                   isStudio360={isStudio360}
-                  garmentRotation={garmentRotation}
+                  isInfoOpen={isInfoOpen}
+                  studioTheme={studioTheme}
                   garments={garments}
-                  isMobile={isMobile}
+                  targetYawRef={targetYawRef}
+                  overviewYawRef={overviewYawRef}
+                  dragDistanceRef={dragDistanceRef}
+                  onSelectGarment={handleSelectGarment}
                 />
               ) : (
                 <ProceduralShowroomFallback
                   garments={garments}
                   selectedId={selectedId}
                   isStudio360={isStudio360}
-                  garmentRotation={garmentRotation}
+                  targetYawRef={targetYawRef}
                 />
               )}
             </Suspense>
@@ -640,84 +1066,171 @@ export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
         )}
       </div>
 
-      {/* --- GARMENT DETAILS CARD (2/3 - 1/3 COMPOSITION) --- */}
-      {currentGarment && (
+      {/* Overview swipe hint */}
+      {selectedId === "overview" && (
+        <div className="absolute bottom-16 sm:bottom-20 left-1/2 -translate-x-1/2 z-20 px-3.5 py-1.5 rounded-full bg-[#1A120E]/80 backdrop-blur-md border border-amber-500/30 text-[10.5px] sm:text-xs text-stone-200 whitespace-nowrap pointer-events-none shadow-lg">
+          ↔ Vuốt ngang để ngắm quanh hành lang · Chạm vào trang phục để khám phá
+        </div>
+      )}
+
+      {/* --- GARMENT DETAILS CARD (2/3 - 1/3 DESKTOP & COMPACT MOBILE SHEET) --- */}
+      {currentGarment && isInfoOpen && (
         <aside
-          className={`absolute z-30 transition-all duration-500 ease-out ${
+          onPointerDown={(e) => e.stopPropagation()}
+          className={
             isMobile
-              ? `bottom-16 left-3 right-3 max-h-[48vh] overflow-y-auto ${isInfoOpen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`
-              : `top-16 right-5 bottom-20 w-84 lg:w-96 ${isInfoOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}`
-          }`}
+              ? "absolute z-30 bottom-14 left-2.5 right-2.5 max-h-[40vh] flex flex-col"
+              : "absolute z-30 top-16 right-5 w-[350px] lg:w-[370px]"
+          }
         >
-          <div className="bg-[#1a120e]/95 backdrop-blur-xl border border-amber-900/60 rounded-3xl p-5 shadow-2xl text-stone-200 flex flex-col justify-between h-full ring-1 ring-stone-900/40">
+          <div className="bg-[#1a120e]/92 backdrop-blur-xl border border-amber-600/35 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-2xl text-stone-200 flex flex-col justify-between overflow-hidden">
             {/* Header info */}
             <div>
-              <div className="flex items-center justify-between pb-2 border-b border-amber-950/80 mb-3">
-                <span className="text-[10px] uppercase tracking-widest text-amber-400 font-semibold font-royal">
-                  Cổ Phục Triều Đại #{currentGarment.tourOrder}
+              <div className="flex items-start justify-between gap-2 pb-1.5 sm:pb-2 border-b border-amber-950/80 mb-2">
+                <span className="text-[10px] sm:text-[11px] uppercase tracking-wider text-amber-400 font-bold leading-snug">
+                  {currentGarment.era}
                 </span>
-                <button
-                  onClick={() => setIsInfoOpen(false)}
-                  className="text-stone-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[10px] text-stone-400">
+                    Điểm dừng {currentGarment.tourOrder}/{garments.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsInfoOpen(false)}
+                    className="px-2 py-0.5 rounded-full border border-amber-500/40 bg-white/5 hover:bg-white/15 text-[10px] text-stone-200 font-medium transition-colors"
+                  >
+                    Thu gọn ▾
+                  </button>
+                </div>
               </div>
 
-              <h2 className="text-lg lg:text-xl font-royal font-semibold text-amber-100 tracking-wide mb-1">
+              <h2 className="text-base sm:text-xl font-royal font-bold text-amber-100 tracking-wide mb-2">
                 {currentGarment.title}
               </h2>
-              <span className="inline-block text-[11px] font-serif italic text-amber-300/80 mb-3">
-                {currentGarment.era}
-              </span>
 
-              {/* Highlights Front & Back */}
-              <div className="space-y-2.5 text-xs text-stone-300 leading-relaxed max-h-[30vh] overflow-y-auto pr-1">
-                <div className="p-2.5 rounded-2xl bg-amber-950/30 border border-amber-900/40">
-                  <div className="font-semibold text-amber-300 text-[11px] mb-1 flex items-center gap-1">
-                    <span>Mặt Trước:</span>
+              {/* Active Side Highlight (Clean & Scroll-free on Mobile, Optional Dual on Desktop) */}
+              <div className="space-y-2 text-xs text-stone-200 leading-relaxed max-h-[16vh] sm:max-h-[28vh] overflow-y-auto pr-1">
+                <div className="p-2.5 sm:p-3 rounded-xl bg-white/[0.06] border border-amber-500/25">
+                  <div className="font-bold text-amber-400 text-[11px] sm:text-xs mb-0.5">
+                    {viewingSide === "front"
+                      ? "Đặc trưng Mặt trước (0°):"
+                      : "Đặc trưng Mặt sau (180°):"}
                   </div>
-                  <p className="text-[11.5px] text-stone-300 font-light">
-                    {currentGarment.highlightFront}
+                  <p className="text-[11.5px] sm:text-xs text-stone-200 leading-relaxed">
+                    {viewingSide === "front"
+                      ? currentGarment.highlightFront
+                      : currentGarment.highlightBack}
                   </p>
                 </div>
 
-                <div className="p-2.5 rounded-2xl bg-stone-900/50 border border-stone-800">
-                  <div className="font-semibold text-stone-300 text-[11px] mb-1">
-                    <span>Mặt Sau & Cấu Trúc:</span>
+                {!isMobile && (
+                  <div className="p-2.5 rounded-xl bg-stone-900/55 border border-stone-800/80">
+                    <div className="font-semibold text-stone-400 text-[11px] mb-0.5">
+                      {viewingSide === "front"
+                        ? "Cấu trúc Mặt sau:"
+                        : "Cấu trúc Mặt trước:"}
+                    </div>
+                    <p className="text-[11px] text-stone-400 leading-relaxed">
+                      {viewingSide === "front"
+                        ? currentGarment.highlightBack
+                        : currentGarment.highlightFront}
+                    </p>
                   </div>
-                  <p className="text-[11.5px] text-stone-400 font-light">
-                    {currentGarment.highlightBack}
-                  </p>
-                </div>
+                )}
               </div>
             </div>
 
-            {/* Quick 360 Rotator & Two-Way Remix CTA */}
-            <div className="pt-4 border-t border-amber-950/80 space-y-2.5 mt-3">
-              {/* Rotation Quick Buttons */}
-              <div className="flex items-center justify-between gap-1.5 text-xs">
-                <span className="text-[11px] text-stone-400 font-medium">Góc nhìn:</span>
-                <div className="inline-flex rounded-xl bg-stone-900 p-0.5 border border-stone-800">
-                  <button
-                    type="button"
-                    onClick={() => setGarmentRotation(0)}
-                    className={`px-2.5 py-1 rounded-lg text-[10.5px] font-medium transition-all ${
-                      garmentRotation === 0 ? 'bg-amber-500 text-stone-950' : 'text-stone-400 hover:text-white'
-                    }`}
-                  >
-                    Mặt trước (0°)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGarmentRotation(Math.PI)}
-                    className={`px-2.5 py-1 rounded-lg text-[10.5px] font-medium transition-all ${
-                      garmentRotation === Math.PI ? 'bg-amber-500 text-stone-950' : 'text-stone-400 hover:text-white'
-                    }`}
-                  >
-                    Mặt sau (180°)
-                  </button>
+            {/* Controls Footer inside Card */}
+            <div className="pt-2.5 sm:pt-3.5 border-t border-amber-950/80 space-y-2 mt-2.5">
+              {!isStudio360 ? (
+                <div>
+                  <div className="text-[10.5px] text-stone-400 mb-1.5 hidden sm:block">
+                    Vuốt ngang trên mẫu để xoay hoặc chọn góc nhanh:
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => rotateToSide("front")}
+                      className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all ${
+                        viewingSide === "front"
+                          ? "bg-[#AE443A] text-white shadow-sm"
+                          : "bg-white/10 text-stone-300 hover:text-white"
+                      }`}
+                    >
+                      Mặt trước (0°)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => rotateToSide("back")}
+                      className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all ${
+                        viewingSide === "back"
+                          ? "bg-[#AE443A] text-white shadow-sm"
+                          : "bg-white/10 text-stone-300 hover:text-white"
+                      }`}
+                    >
+                      Mặt sau (180°)
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[11px] text-stone-300">
+                    Phông nền Studio:
+                  </span>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setStudioTheme("warm")}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                        studioTheme === "warm"
+                          ? "bg-[#EAE4DC] text-stone-950 font-semibold"
+                          : "bg-white/10 text-stone-300"
+                      }`}
+                    >
+                      Sáng ấm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStudioTheme("dark")}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                        studioTheme === "dark"
+                          ? "bg-amber-500 text-stone-950 font-semibold"
+                          : "bg-white/10 text-stone-300"
+                      }`}
+                    >
+                      Tối trầm
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Studio 360 Toggle + Prev/Next */}
+              <div className="flex gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsStudio360((prev) => !prev)}
+                  className="flex-1 py-2 px-3 rounded-xl bg-[#E09F3E] hover:bg-amber-400 text-[#1A120E] text-[11px] sm:text-xs font-bold transition-all"
+                >
+                  {isStudio360
+                    ? "← Trở lại Hành lang"
+                    : "Soi chi tiết 360° (Cô lập)"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrevGarment}
+                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold"
+                  title="Mẫu trước"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextGarment}
+                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold"
+                  title="Mẫu tiếp theo"
+                >
+                  ›
+                </button>
               </div>
 
               {/* PRIMARY TWO-WAY BRIDGE CTA: Phối Gen Z với mẫu này */}
@@ -725,10 +1238,10 @@ export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
                 <button
                   type="button"
                   onClick={() => onRemixGarment(currentGarment.id)}
-                  className="w-full py-2.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 text-xs font-semibold shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  className="w-full py-2 sm:py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 text-[11px] sm:text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
                 >
-                  <Sparkles className="w-4 h-4 text-stone-950" />
-                  <span>✨ Phối Gen Z Với Mẫu Này →</span>
+                  <Sparkles className="w-3.5 h-3.5 text-stone-950" />
+                  <span>Phối Gen Z Với Mẫu Này →</span>
                 </button>
               )}
             </div>
@@ -736,34 +1249,60 @@ export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
         </aside>
       )}
 
-      {/* Mini Toggle info tab when panel is closed */}
+      {/* Mini Collapsed Pill Bar when Info Card is closed */}
       {!isInfoOpen && currentGarment && (
-        <button
-          onClick={() => setIsInfoOpen(true)}
-          className="absolute z-30 right-4 top-16 px-3 py-1.5 rounded-full bg-stone-900/90 border border-amber-600/50 text-amber-300 text-xs font-medium shadow-xl flex items-center gap-1.5"
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          className={
+            isMobile
+              ? "absolute z-30 bottom-14 left-3 right-3 flex items-center justify-between gap-2 bg-[#1A120E]/90 backdrop-blur-md px-3.5 py-2 rounded-full border border-amber-500/35 shadow-xl"
+              : "absolute z-30 top-16 right-5 flex items-center gap-2 bg-[#1A120E]/90 backdrop-blur-md px-4 py-2 rounded-full border border-amber-500/35 shadow-xl"
+          }
         >
-          <Info className="w-3.5 h-3.5 text-amber-400" />
-          <span>Thuyết minh y phục</span>
-        </button>
+          <span className="text-xs font-bold text-amber-100 truncate">
+            {currentGarment.title}
+          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsStudio360((prev) => !prev)}
+              className="px-2.5 py-1 rounded-full bg-[#E09F3E] text-[#1A120E] text-[11px] font-bold"
+            >
+              {isStudio360 ? "← Hành lang" : "360°"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsInfoOpen(true)}
+              className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-amber-500/40 text-amber-200 text-[11px] font-semibold flex items-center gap-1"
+            >
+              <Info className="w-3 h-3 text-amber-400" />
+              <span>Thuyết minh ▴</span>
+            </button>
+          </div>
+        </div>
       )}
 
       {/* --- BOTTOM TOUR CAROUSEL DOCK --- */}
-      <footer className="absolute bottom-3 left-0 right-0 z-30 flex items-center justify-center px-3 pointer-events-none">
-        <div className="pointer-events-auto inline-flex items-center gap-1 sm:gap-2 p-1.5 rounded-full bg-stone-950/85 backdrop-blur-xl border border-stone-800 shadow-2xl text-xs max-w-full overflow-x-auto no-scrollbar">
+      <footer
+        onPointerDown={(e) => e.stopPropagation()}
+        className="absolute bottom-2.5 sm:bottom-4 left-0 right-0 z-30 flex items-center justify-center px-2.5 pointer-events-none"
+      >
+        <div className="pointer-events-auto inline-flex items-center gap-1 sm:gap-1.5 p-1.5 rounded-full bg-[#1A120E]/90 backdrop-blur-xl border border-amber-500/35 shadow-2xl text-xs max-w-full overflow-x-auto no-scrollbar">
           {/* Overview button */}
           <button
-            onClick={() => handleSelectGarment('overview')}
+            type="button"
+            onClick={() => handleSelectGarment("overview")}
             className={`px-3 py-1.5 rounded-full transition-all shrink-0 flex items-center gap-1.5 ${
-              selectedId === 'overview'
-                ? 'bg-amber-500 text-stone-950 font-semibold shadow-sm'
-                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-900'
+              selectedId === "overview"
+                ? "bg-[#AE443A] text-white font-semibold shadow-sm"
+                : "text-stone-300 hover:text-white hover:bg-white/10"
             }`}
           >
-            <Compass className="w-3 h-3" />
-            <span className="text-[11px]">Toàn cảnh</span>
+            <Compass className="w-3.5 h-3.5" />
+            <span className="text-[11px] sm:text-xs">Toàn cảnh</span>
           </button>
 
-          <span className="w-px h-3.5 bg-stone-800 shrink-0" />
+          <span className="w-px h-3.5 bg-stone-700 shrink-0" />
 
           {/* 5 Garment Tour Pills */}
           {garments.map((g) => {
@@ -771,35 +1310,42 @@ export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
             return (
               <button
                 key={g.id}
+                type="button"
                 onClick={() => handleSelectGarment(g.id)}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-full transition-all shrink-0 flex items-center gap-1.5 ${
+                className={`px-2.5 sm:px-3.5 py-1.5 rounded-full transition-all shrink-0 flex items-center gap-1.5 ${
                   isSelected
-                    ? 'bg-amber-500 text-stone-950 font-semibold shadow-sm'
-                    : 'text-stone-300 hover:text-white hover:bg-stone-900'
+                    ? "bg-[#AE443A] text-white font-semibold shadow-sm"
+                    : "text-stone-300 hover:text-white hover:bg-white/10"
                 }`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-stone-950' : 'bg-amber-400'}`} />
-                <span className="text-[11px] truncate max-w-[110px] sm:max-w-none">
-                  {g.title.split('&')[0].trim()}
+                <span className="text-[11px] sm:text-xs whitespace-nowrap">
+                  {g.tourOrder}.{" "}
+                  {g.title
+                    .split("&")[0]
+                    .replace(" Truyền Thống", "")
+                    .replace(" Cung Đình", "")
+                    .trim()}
                 </span>
               </button>
             );
           })}
 
-          <span className="w-px h-3.5 bg-stone-800 shrink-0" />
+          <span className="w-px h-3.5 bg-stone-700 shrink-0 hidden sm:block" />
 
           {/* Prev/Next arrows */}
-          <div className="flex items-center gap-0.5 shrink-0">
+          <div className="hidden sm:flex items-center gap-0.5 shrink-0">
             <button
+              type="button"
               onClick={handlePrevGarment}
-              className="p-1.5 rounded-full text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
+              className="p-1.5 rounded-full text-stone-300 hover:text-white hover:bg-white/10 transition-colors"
               title="Mẫu trước"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
             <button
+              type="button"
               onClick={handleNextGarment}
-              className="p-1.5 rounded-full text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
+              className="p-1.5 rounded-full text-stone-300 hover:text-white hover:bg-white/10 transition-colors"
               title="Mẫu tiếp theo"
             >
               <ChevronRight className="w-3.5 h-3.5" />
@@ -810,3 +1356,7 @@ export const VietPhucGallery: React.FC<VietPhucGalleryProps> = ({
     </div>
   );
 };
+
+export default VietPhucGallery;
+
+useGLTF.preload("/models/viet_phuc_gallery.glb");
