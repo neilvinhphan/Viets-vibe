@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { TryOnWebsiteLink } from "./components/TryOnWebsiteLink";
 import {
   Garment,
   OutfitPreset,
@@ -25,6 +26,9 @@ import { GeminiImageAnalyzerModal } from "./components/GeminiImageAnalyzerModal"
 import { SceneBackground } from "./components/SceneBackground";
 import { SceneSelector } from "./components/SceneSelector";
 import { LookbookAndCompareModal } from "./components/LookbookAndCompareModal";
+import { LookbookPage } from "./components/LookbookPage";
+import type { LookbookSnapshot } from "./utils/lookbookSnapshot";
+import { useLookbookCollection } from "./hooks/useLookbookCollection";
 import { IntroOnboardingModal } from "./components/IntroOnboardingModal";
 import { VietPhucGallery } from "./components/VietPhucGallery";
 import { zenSoundscape } from "./services/zenSoundscape";
@@ -80,14 +84,24 @@ export default function App() {
   const [isIntroActive, setIsIntroActive] = useState<boolean>(true);
 
   // 3D Showroom <-> 2D Gen Z Remix Studio 2-way mode
-  const [activeView, setActiveView] = useState<"studio_2d" | "gallery_3d">(
+  const [activeView, setActiveView] = useState<"studio_2d" | "gallery_3d" | "lookbook">(
     "studio_2d",
   );
   const [galleryTargetId, setGalleryTargetId] = useState<string>("overview");
+  const {
+    snapshots, storageNotice, selectedId, selectSnapshot,
+    saveSnapshot, renameSnapshot, toggleFavorite, deleteSnapshot,
+  } = useLookbookCollection();
 
   // Single exclusive active state for all popovers, menus, and modals
   // Possible values: 'remix' | 'tools' | 'character_customizer' | 'wardrobe' | 'validation' | 'lookbook' | 'gemini' | 'historical_info' | null
   const [activePopover, setActivePopover] = useState<string | null>(null);
+  const switchView = (view: "studio_2d" | "gallery_3d" | "lookbook") => {
+    setActivePopover(null);
+    setIsZenMode(false);
+    setActiveView(view);
+  };
+
   const [selectedGarmentForInfo, setSelectedGarmentForInfo] =
     useState<Garment | null>(null);
 
@@ -417,6 +431,19 @@ export default function App() {
     }
   };
 
+  const handleApplyLookbookSnapshot = (snapshot: LookbookSnapshot) => {
+    setEquippedGarmentIds(snapshot.garments.map(item => item.id));
+    const scene = HISTORICAL_SCENES.find(item => item.id === snapshot.scene.id);
+    if (scene) setActiveScene(scene);
+    setSceneOpacity(snapshot.sceneOpacity);
+    setCharacterGender(snapshot.gender);
+    setCharacterSkinTone(snapshot.skinTone);
+    setActiveEvent(snapshot.eventType);
+    setActiveWeather(snapshot.weatherType);
+    setValidationMode(snapshot.validationMode);
+    switchView("studio_2d");
+  };
+
   const handleEnterFromIntro = (view: "studio_2d" | "gallery_3d") => {
     setActivePopover(null);
     setIsZenMode(false);
@@ -559,7 +586,7 @@ export default function App() {
       >
         {/* Top Navbar */}
         <header
-          className={`relative z-50 min-h-[54px] w-full shrink-0 bg-[#faf8f5] border-b border-stone-200/80 px-3.5 py-2.5 md:px-6 md:py-2 flex md:flex-wrap items-center justify-between gap-2 transition-all duration-500 transform ${
+          className={`relative z-50 min-h-[54px] w-full shrink-0 bg-[#faf8f5] border-b border-stone-200/80 px-3.5 py-2.5 md:px-6 md:py-2 flex flex-wrap items-center justify-between gap-2 transition-all duration-500 transform ${activeView === "lookbook" ? "flex-wrap" : ""} ${
             isZenMode || isIntroActive
               ? "-translate-y-full opacity-0 pointer-events-none"
               : "translate-y-0 opacity-100"
@@ -582,7 +609,7 @@ export default function App() {
               <button
                 id="view-switch-2d-btn"
                 type="button"
-                onClick={() => setActiveView("studio_2d")}
+                onClick={() => switchView("studio_2d")}
                 className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-xs ${
                   activeView === "studio_2d"
                     ? "bg-white text-stone-900 shadow-2xs font-bold"
@@ -599,7 +626,7 @@ export default function App() {
                 type="button"
                 onClick={() => {
                   setGalleryTargetId("overview");
-                  setActiveView("gallery_3d");
+                  switchView("gallery_3d");
                 }}
                 className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-xs ${
                   activeView === "gallery_3d"
@@ -612,16 +639,34 @@ export default function App() {
                 <span className="hidden lg:inline">Hành Lang 3D</span>
                 <span className="lg:hidden">3D</span>
               </button>
+              <button
+                id="view-switch-lookbook-btn"
+                type="button"
+                onClick={() => switchView("lookbook")}
+                aria-pressed={activeView === "lookbook"}
+                className={`flex items-center justify-center px-3 py-1.5 rounded-full transition-all text-xs ${
+                  activeView === "lookbook"
+                    ? "bg-white text-[#913d2f] shadow-2xs font-bold"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+              >
+                Lookbook
+              </button>
             </div>
           </div>
+          <TryOnWebsiteLink onOpen={() => setActivePopover(null)} />
+
+{/* Center: Validation Status Pill */}
 
           {/* Center: Validation Status Pill */}
-          <div className="hidden md:flex items-center justify-center shrink-0 md:mx-1">
-            {renderValidationStatusPill()}
-          </div>
+          {activeView !== "lookbook" && (
+            <div className="hidden md:flex items-center justify-center shrink-0 md:mx-1">
+              {renderValidationStatusPill()}
+            </div>
+          )}
 
           {/* Right: Quick actions cluster */}
-          <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+          <div className={`${activeView === "lookbook" ? "hidden" : "flex"} items-center gap-1.5 md:gap-2 shrink-0`}>
             {/* Remix / Presets Dropdown (includes ✨ AI Vibe-to-Outfit input) */}
             <div className="relative">
               <button
@@ -940,7 +985,29 @@ export default function App() {
         )}
 
         {/* Main Stage Workspace: 2D Studio vs 3D Heritage Gallery */}
-        {activeView === "gallery_3d" ? (
+        {activeView === "lookbook" ? (
+          <LookbookPage
+            equippedGarments={equippedGarments}
+            activeScene={activeScene}
+            sceneOpacity={sceneOpacity}
+            gender={characterGender}
+            skinTone={characterSkinTone}
+            activeEvent={activeEvent}
+            activeWeather={activeWeather}
+            validationMode={validationMode}
+            snapshots={snapshots}
+            storageNotice={storageNotice}
+            selectedId={selectedId}
+            onSelectSnapshot={selectSnapshot}
+            onSaveSnapshot={saveSnapshot}
+            onRenameSnapshot={renameSnapshot}
+            onToggleFavorite={toggleFavorite}
+            onDeleteSnapshot={deleteSnapshot}
+            onApplySnapshot={handleApplyLookbookSnapshot}
+            onBackToStudio={() => switchView("studio_2d")}
+            onOpenOutfitCard={() => setActivePopover("lookbook")}
+          />
+        ) : activeView === "gallery_3d" ? (
           <main className="flex-1 min-h-0 relative overflow-hidden z-10 w-full bg-[#120c09]">
             <VietPhucGallery
               initialGarmentId={galleryTargetId}

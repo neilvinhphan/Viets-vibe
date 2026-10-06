@@ -1,0 +1,1197 @@
+/* Giao diện Lookbook */
+.lookbook-page {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #f8f5ef;
+  color: #3c3025;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.lookbook-page,
+.lookbook-page * {
+  box-sizing: border-box;
+}
+
+.lookbook-shell {
+  max-width: 1480px;
+  margin: auto;
+  padding: 22px 36px 12px;
+}
+
+.lookbook-page button {
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lookbook-page button svg {
+  flex-shrink: 0;
+}
+
+.lookbook-page button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.lookbook-page button:focus-visible {
+  outline: 2px solid #934530;
+  outline-offset: 4px;
+}
+
+.lookbook-page:focus-visible {
+  outline: 2px solid #934530;
+  outline-offset: -3px;
+}
+
+.lookbook-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  color: #876e50;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+}
+
+.lookbook-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #d9cfbe;
+  border-radius: 30px;
+  padding: 9px 16px;
+  font-size: 14px;
+  background: #fcfaf5;
+  color: #6f573e;
+  letter-spacing: 0;
+}
+
+.lookbook-outline:hover {
+  background: #eee5d5;
+}
+
+.lookbook-editorial {
+  position: relative;
+  min-height: 590px;
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) minmax(300px, 410px) minmax(0, 1fr);
+  align-items: center;
+  gap: 28px;
+}
+
+.lookbook-watermark {
+  position: absolute;
+  left: 0;
+  bottom: 20px;
+  font: 120px/1 'Cormorant Garamond', Georgia, serif;
+  letter-spacing: 12px;
+  color: #e8e0d1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.lookbook-heading,
+.lookbook-note,
+.lookbook-portrait {
+  min-width: 0;
+}
+
+.lookbook-heading {
+  position: relative;
+  z-index: 1;
+}
+
+.lookbook-issue {
+  font: italic 22px 'Cormorant Garamond', Georgia, serif;
+  color: #98703d;
+  margin-bottom: 25px;
+}
+
+.lookbook-heading h2 {
+  margin: 0;
+  font: 500 clamp(42px, 4.6vw, 72px)/1.06
+    'Cormorant Garamond', Georgia, serif;
+  letter-spacing: -.02em;
+  overflow-wrap: anywhere;
+}
+
+.lookbook-heading h2 em {
+  display: block;
+  color: #913d2f;
+}
+
+.lookbook-subtitle {
+  margin: 23px 0 0;
+  font-size: 12px;
+  color: #806b53;
+  line-height: 1.8;
+}
+
+.lookbook-hairline {
+  width: 55px;
+  height: 1px;
+  background: #b69a70;
+  margin: 26px 0;
+}
+
+.lookbook-motto {
+  font-size: 12px;
+  color: #876f52;
+  letter-spacing: 1px;
+}
+
+.lookbook-portrait {
+  position: relative;
+  margin: 0;
+  padding: 25px 25px 20px;
+  border: 1px solid #c7b89e;
+  background: #f8f2e5;
+  box-shadow: 10px 14px 0 #e9e1d366;
+  transform: rotate(-2deg);
+  z-index: 1;
+  animation: lookbook-portrait-enter .45s ease-out both;
+}
+
+.lookbook-portrait::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px solid #dcd0ba;
+  pointer-events: none;
+}
+
+.lookbook-portrait::after {
+  content: '';
+  position: absolute;
+  top: 17px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  background: #ad8651;
+  transform: translateX(-50%) rotate(45deg);
+  pointer-events: none;
+}
+
+.lookbook-arch {
+  position: relative;
+  height: 450px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 55%, #ead2a0, #f8f2e6 75%);
+  border-radius: 190px 190px 0 0;
+  border: 1px solid #e0d0b2;
+}
+
+.lookbook-avatar {
+  height: 100%;
+  width: 100%;
+  transform: rotate(2deg);
+  --avatar-height: 420px;
+  pointer-events: none;
+}
+
+.lookbook-avatar #avatar-container > .relative.flex-1 {
+  padding: 0;
+}
+
+.lookbook-avatar .avatar-figure {
+  height: min(var(--avatar-height), 100%);
+  width: auto;
+  aspect-ratio: 340 / 520;
+}
+
+.lookbook-plate {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding-top: 18px;
+  color: #806b50;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.lookbook-plate em {
+  font: italic 22px 'Cormorant Garamond', Georgia, serif;
+  color: #8c3f2c;
+  letter-spacing: 0;
+}
+
+.lookbook-seal {
+  position: absolute;
+  right: -22px;
+  bottom: 68px;
+  width: 70px;
+  height: 70px;
+  border: 1px solid #9f4c3b;
+  outline: 1px solid #9f4c3b;
+  outline-offset: -7px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9f4c3b;
+  font: 500 20px/1.05 'Cormorant Garamond', Georgia, serif;
+  text-align: center;
+  background: #f8f2e5;
+  transform: rotate(15deg);
+}
+
+.lookbook-note {
+  position: relative;
+  z-index: 1;
+  padding-left: 28px;
+}
+
+.lookbook-note-title {
+  font: italic 34px/1.3 'Cormorant Garamond', Georgia, serif;
+  color: #9e7a48;
+  margin: 0;
+}
+
+.lookbook-palette {
+  display: flex;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.lookbook-palette > span {
+  display: block;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  border: 4px solid #f8f5ef;
+  outline: 1px solid #cbbb9d;
+}
+
+.lookbook-detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 30px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid #b6a183;
+  color: #785a37;
+  font-size: 14px;
+}
+
+.lookbook-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #dcd2c1;
+  padding: 18px 0;
+  gap: 20px;
+}
+
+.lookbook-back {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 14px;
+  color: #806444;
+}
+
+.lookbook-bottom-motto {
+  font-size: 12px;
+  color: #876e50;
+  letter-spacing: 1px;
+}
+
+.lookbook-actions {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.lookbook-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #302a24;
+  color: #fff6e8;
+  padding: 11px 22px;
+  border-radius: 24px;
+  font-size: 14px;
+  border: 1px solid #302a24;
+}
+
+.lookbook-primary:hover {
+  background: #584330;
+}
+
+.lookbook-more {
+  display: inline-flex;
+}
+
+.lookbook-secondary-action,
+.lookbook-mobile-details {
+  display: none;
+}
+
+.lookbook-outline,
+.lookbook-primary,
+.lookbook-icon,
+.lookbook-back {
+  transition:
+    background-color .2s ease,
+    border-color .2s ease,
+    color .2s ease,
+    box-shadow .2s ease;
+}
+
+.lookbook-pager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #806444;
+}
+
+.lookbook-pager button,
+.lookbook-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1px solid #d9cfbe;
+  border-radius: 50%;
+  background: #fcfaf5;
+  color: #806444;
+}
+
+.lookbook-icon:hover {
+  background: #eee5d5;
+}
+
+.lookbook-icon.lookbook-loved {
+  color: #a13e31;
+  border-color: #d5a594;
+  background: #f9ede7;
+}
+
+.lookbook-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Khung popup */
+.lookbook-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(600px, calc(100% - 32px));
+  max-height: min(85dvh, calc(100dvh - 32px));
+  padding: 28px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #dfcfb1;
+  border-radius: 24px;
+  background: #faf7f0;
+  color: #3c3025;
+  box-shadow:
+    0 32px 100px #29231e2e,
+    0 4px 16px #29231e0d;
+  scrollbar-gutter: stable;
+  font-family: 'Be Vietnam Pro', Arial, sans-serif;
+}
+
+.lookbook-dialog[open] {
+  animation:
+    lookbook-popup-enter .28s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.lookbook-dialog::backdrop {
+  background: #29231e70;
+  backdrop-filter: blur(8px);
+}
+
+.lookbook-dialog[open]::backdrop {
+  animation: lookbook-veil-enter .25s ease both;
+}
+
+.lookbook-dialog-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e8dece;
+  background: #faf7f0;
+}
+
+.lookbook-dialog-head h3 {
+  margin: 0;
+  min-width: 0;
+  font: 500 34px/1.15 'Cormorant Garamond', Georgia, serif;
+  overflow-wrap: anywhere;
+}
+
+.lookbook-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1px solid #dfcfb6;
+  border-radius: 50%;
+  background: #fffdf8;
+  color: #68503a;
+  transition: background-color .2s ease, transform .2s ease;
+}
+
+.lookbook-close:hover {
+  background: #f0e5d3;
+  transform: rotate(8deg);
+}
+
+.lookbook-dialog button:focus-visible {
+  outline: 2px solid #a88249;
+  outline-offset: 3px;
+}
+
+.lookbook-dialog-context {
+  color: #876e50;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.lookbook-empty {
+  margin: 16px 0 0;
+  color: #876e50;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.lookbook-error {
+  color: #a13e31;
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+
+/* Popup lưu và đổi tên */
+.lookbook-dialog form {
+  display: grid;
+  gap: 0;
+}
+
+.lookbook-field {
+  display: block;
+  margin-bottom: 10px;
+  color: #765b3e;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.lookbook-name-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  padding: 14px 16px;
+  border: 1px solid #d9c9ac;
+  border-radius: 14px;
+  background: #fffdf8;
+  color: #3c3025;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  transition:
+    border-color .2s ease,
+    box-shadow .2s ease,
+    background-color .2s ease;
+}
+
+.lookbook-name-input:hover {
+  border-color: #bda17a;
+}
+
+.lookbook-name-input:focus-visible {
+  outline: none;
+  border-color: #a88249;
+  background: #fffefa;
+  box-shadow: 0 0 0 4px #b68d4d1f;
+}
+
+.lookbook-name-input[aria-invalid='true'] {
+  border-color: #a13e31;
+}
+
+.lookbook-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.lookbook-form-actions button {
+  min-height: 46px;
+  padding: 11px 22px;
+}
+
+.lookbook-danger {
+  border: 1px solid #9a3328;
+  border-radius: 24px;
+  background: #9a3328;
+  color: #fff7e9;
+  font-size: 14px;
+}
+
+.lookbook-danger:hover {
+  background: #812a22;
+}
+
+/* Popup tùy chọn */
+.lookbook-option-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.lookbook-option-list button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  min-height: 64px;
+  padding: 12px 16px;
+  border: 1px solid #e1d4bf;
+  border-radius: 16px;
+  background: #fffdf8;
+  color: #624d38;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.5;
+  transition:
+    transform .2s ease,
+    background-color .2s ease,
+    border-color .2s ease,
+    box-shadow .2s ease;
+}
+
+.lookbook-option-list button > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lookbook-option-list button > svg:first-child {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  border-radius: 11px;
+  background: #f3ebdd;
+  color: #99713e;
+}
+
+.lookbook-option-list button > svg:last-child:not(:first-child) {
+  width: 16px;
+  height: 16px;
+  color: #a38b6b;
+}
+
+.lookbook-export-control {
+  min-width: 0;
+}
+
+.lookbook-export-control button {
+  border-color: #d8bd8b;
+  background: linear-gradient(110deg, #f8edd7, #fffaf0);
+}
+
+.lookbook-export-control button > svg:first-child {
+  background: #a88249;
+  color: #fff8ea;
+}
+
+.lookbook-export-control button small {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border: 1px solid #d8bd8b;
+  border-radius: 8px;
+  font-size: 10px;
+  letter-spacing: .7px;
+  color: #876537;
+}
+
+.lookbook-export-notice {
+  margin: 0;
+  font-size: 12px;
+  color: #6f573e;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.lookbook-export-notice:not(:empty) {
+  margin: 8px 4px 0;
+}
+
+.lookbook-export-spinner {
+  animation: lookbook-export-spin 1s linear infinite;
+}
+
+/* Popup bộ sưu tập */
+.lookbook-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px;
+  margin-bottom: 20px;
+  border: 1px solid #e1d4bf;
+  border-radius: 30px;
+  background: #f1e9dc;
+}
+
+.lookbook-filter button {
+  min-height: 38px;
+  padding: 8px 18px;
+  border: 1px solid transparent;
+  border-radius: 24px;
+  color: #806b53;
+  font-size: 13px;
+  transition: background-color .2s ease, color .2s ease;
+}
+
+.lookbook-filter button.active {
+  border-color: #dccbb0;
+  background: #fffdf8;
+  color: #674c29;
+  box-shadow: 0 2px 6px #7650200d;
+}
+
+.lookbook-collection-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.lookbook-draft,
+.lookbook-entry {
+  width: 100%;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e1d4bf;
+  border-radius: 16px;
+  transition:
+    border-color .2s ease,
+    box-shadow .2s ease,
+    transform .2s ease;
+}
+
+.lookbook-draft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 82px;
+  background: #f4ecdd;
+  text-align: left;
+}
+
+.lookbook-draft > svg,
+.lookbook-entry-open > svg {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 9px;
+  border: 1px solid #e4d4b7;
+  border-radius: 12px;
+  background: #f7efe0;
+  color: #9f7743;
+}
+
+.lookbook-draft > span,
+.lookbook-entry-open > span {
+  display: block;
+  min-width: 0;
+}
+
+.lookbook-draft strong,
+.lookbook-entry-open strong {
+  display: block;
+  color: #493829;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.lookbook-draft small,
+.lookbook-entry-open small {
+  display: block;
+  margin-top: 5px;
+  color: #907555;
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.lookbook-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  background: #fffdf8;
+}
+
+.lookbook-entry-open {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  min-height: 48px;
+  width: 100%;
+  text-align: left;
+}
+
+.lookbook-entry-tools {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.lookbook-entry-tools .lookbook-icon {
+  width: 40px;
+  height: 40px;
+  background: #faf7f0;
+}
+
+.lookbook-entry-tools .lookbook-loved {
+  background: #f9ede7;
+}
+
+.lookbook-entry-tools button:last-child:hover {
+  color: #a13e31;
+  border-color: #d5a594;
+  background: #fbede8;
+}
+
+.lookbook-draft.lookbook-selected,
+.lookbook-entry.lookbook-selected {
+  border-color: #ac8051;
+  box-shadow: 0 0 0 1px #ac805126;
+}
+
+/* Chi tiết bản phối */
+.lookbook-context-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+  margin: 0 0 12px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #e8dece;
+}
+
+.lookbook-context-grid dt {
+  margin-bottom: 4px;
+  color: #876e50;
+  font-size: 12px;
+}
+
+.lookbook-context-grid dd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #3c3025;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.lookbook-skin-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 1px solid #baa88a;
+  border-radius: 50%;
+}
+
+.lookbook-garment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+
+.lookbook-garment-list li {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e8dece;
+  font-size: 14px;
+}
+
+.lookbook-garment-list li > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lookbook-garment-list li small {
+  display: block;
+  margin-bottom: 3px;
+  color: #876e50;
+  font-size: 12px;
+}
+
+.lookbook-garment-swatch {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  border: 1px solid #bcb09c;
+  border-radius: 50%;
+}
+
+/* Hiệu ứng */
+.lookbook-option-list,
+.lookbook-collection-list,
+.lookbook-dialog form {
+  animation: lookbook-content-enter .3s ease both;
+}
+
+@keyframes lookbook-popup-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes lookbook-veil-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes lookbook-content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lookbook-portrait-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) rotate(-3deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(-2deg);
+  }
+}
+
+@keyframes lookbook-export-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (hover: hover) {
+  .lookbook-option-list button:not(:disabled):hover {
+    transform: translateX(3px);
+    border-color: #c5a374;
+    background: #f7eedf;
+    box-shadow: 0 5px 14px #7650200a;
+  }
+
+  .lookbook-draft:hover,
+  .lookbook-entry:hover {
+    transform: translateY(-2px);
+    border-color: #c5a374;
+    box-shadow: 0 5px 14px #7650200a;
+  }
+}
+
+/* Responsive */
+@media (min-width: 1450px) and (min-height: 850px) {
+  .lookbook-editorial {
+    min-height: 700px;
+    grid-template-columns: minmax(0, 1fr) 470px minmax(0, 1fr);
+  }
+
+  .lookbook-arch { height: 510px; }
+  .lookbook-avatar { --avatar-height: 490px; }
+}
+
+@media (max-width: 1100px) {
+  .lookbook-editorial {
+    grid-template-columns: minmax(0, 1fr) 330px minmax(0, 1fr);
+    gap: 20px;
+    min-height: 535px;
+  }
+
+  .lookbook-portrait { padding: 22px; }
+  .lookbook-arch { height: 390px; }
+  .lookbook-avatar { --avatar-height: 375px; }
+  .lookbook-note { padding-left: 12px; }
+  .lookbook-note-title { font-size: 28px; }
+  .lookbook-watermark { font-size: 90px; }
+  .lookbook-bottom-motto { display: none; }
+}
+
+@media (max-width: 900px) {
+  .lookbook-shell { padding: 16px 24px 0; }
+
+  .lookbook-editorial {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    min-height: 0;
+    padding: 24px 0 36px;
+  }
+
+  .lookbook-heading {
+    width: min(100%, 620px);
+    text-align: center;
+  }
+
+  .lookbook-issue {
+    margin-bottom: 10px;
+    font-size: 20px;
+  }
+
+  .lookbook-heading h2 { font-size: clamp(38px, 6vw, 56px); }
+  .lookbook-subtitle { margin-top: 10px; }
+
+  .lookbook-hairline,
+  .lookbook-motto,
+  .lookbook-watermark,
+  .lookbook-note {
+    display: none;
+  }
+
+  .lookbook-portrait {
+    width: min(360px, calc(100% - 32px));
+    padding: 22px;
+  }
+
+  .lookbook-arch { height: 400px; }
+  .lookbook-avatar { --avatar-height: 380px; }
+
+  .lookbook-bottom {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 14px;
+  }
+
+  .lookbook-back { justify-self: start; }
+  .lookbook-pager { justify-self: end; }
+
+  .lookbook-actions {
+    grid-column: 1 / -1;
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+
+  .lookbook-actions .lookbook-primary {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .lookbook-shell { padding: 14px 16px 0; }
+
+  .lookbook-topline {
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 10px;
+    letter-spacing: .5px;
+  }
+
+  .lookbook-topline > span {
+    flex: 1 1 110px;
+  }
+
+  .lookbook-topline .lookbook-outline {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .lookbook-editorial {
+    gap: 20px;
+    padding-top: 20px;
+  }
+
+  .lookbook-heading h2 {
+    font-size: clamp(36px, 9vw, 48px);
+  }
+
+  .lookbook-portrait {
+    width: min(310px, calc(100% - 32px));
+    padding: 20px;
+  }
+
+  .lookbook-arch {
+    height: clamp(290px, 88vw, 360px);
+  }
+
+  .lookbook-avatar {
+    --avatar-height: clamp(275px, 83vw, 340px);
+  }
+
+  .lookbook-seal {
+    width: 60px;
+    height: 60px;
+    right: -16px;
+    font-size: 18px;
+  }
+
+  .lookbook-bottom {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    background: #f8f5eff2;
+    backdrop-filter: blur(12px);
+    padding: 12px 0 calc(
+      12px + env(safe-area-inset-bottom, 0px)
+    );
+  }
+
+  .lookbook-actions { gap: 7px; }
+
+  .lookbook-actions .lookbook-outline {
+    padding: 10px 12px;
+  }
+
+  .lookbook-actions .lookbook-primary {
+    padding: 11px 12px;
+    font-size: 13px;
+  }
+
+  .lookbook-dialog {
+    width: calc(100% - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .lookbook-dialog-head {
+    gap: 12px;
+    margin-bottom: 18px;
+    padding-bottom: 16px;
+  }
+
+  .lookbook-dialog-head h3 {
+    font-size: 29px;
+  }
+
+  .lookbook-entry {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .lookbook-entry-tools {
+    justify-self: end;
+  }
+
+  .lookbook-entry-tools .lookbook-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .lookbook-option-list button {
+    padding: 12px;
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .lookbook-filter button {
+    min-height: 44px;
+    padding: 8px 16px;
+  }
+
+  .lookbook-form-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lookbook-form-actions button {
+    width: 100%;
+    padding: 11px 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .lookbook-context-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .lookbook-topline {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .lookbook-topline > span {
+    flex: none;
+  }
+
+  .lookbook-actions .lookbook-more {
+    gap: 4px;
+    font-size: 12px;
+    padding: 10px 8px;
+  }
+}
+
+@media (max-height: 650px) and (min-width: 901px) {
+  .lookbook-editorial {
+    min-height: 460px;
+    grid-template-columns: minmax(0, 1fr) 300px minmax(0, 1fr);
+  }
+
+  .lookbook-arch { height: 330px; }
+  .lookbook-avatar { --avatar-height: 315px; }
+  .lookbook-heading h2 { font-size: 52px; }
+}
+
+@media (pointer: coarse) {
+  .lookbook-page button {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lookbook-page *,
+  .lookbook-dialog::backdrop {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .lookbook-option-list button:hover,
+  .lookbook-draft:hover,
+  .lookbook-entry:hover,
+  .lookbook-close:hover {
+    transform: none;
+  }
+}
