@@ -8,9 +8,9 @@ export const GARMENTS: Garment[] = [
     nameEn: 'Cinnabar Silk Yem (Underbodice)',
     category: 'undergarment',
     layerSlot: 1,
-    dynasty: 'nguyen',
-    dynastyName: 'Thời Nguyễn (1802 - 1945)',
-    eraYears: '1802 - 1945',
+    dynasty: 'hau_le',
+    dynastyName: 'Dân gian Bắc Bộ (nhiều thời kỳ)',
+    eraYears: 'Thế kỷ 17 - đầu thế kỷ 20',
     formality: 'thuong_phuc',
     formalityName: 'Nội Y / Thường Phục',
     socialRank: 'commoner',
@@ -512,8 +512,8 @@ export const GARMENTS: Garment[] = [
     category: 'headwear',
     layerSlot: 5,
     dynasty: 'hau_le',
-    dynastyName: 'Thời Hậu Lê (1428 - 1789)',
-    eraYears: '1428 - 1789',
+    dynastyName: 'Dân gian Bắc Bộ (Hậu Lê - đầu thế kỷ 20)',
+    eraYears: 'Hậu Lê - đầu thế kỷ 20',
     formality: 'thuong_phuc',
     formalityName: 'Thường Dân / Lễ Hội',
     socialRank: 'commoner',
@@ -895,15 +895,13 @@ export const OUTFIT_PRESETS: OutfitPreset[] = [
   },
   {
     id: 'preset_vien_linh_ly_tran',
-    name: 'Triều Phục Viên Lĩnh Thời Lý - Trần',
+    name: 'Phối Đồ Cảm Hứng Lý - Trần',
     dynastyName: 'Thời Lý - Trần (1009 - 1400)',
-    description: 'Hào khí Đông A uy nghiêm với Áo Viên Lĩnh sắc Tử Điều, Quần Bạch Quy trắng, Mũ Phác Đầu cánh chuồn và Ngọc Bội cung đình.',
+    description: 'Bản phối minh họa cảm hứng Lý - Trần gồm Áo Viên Lĩnh và Mũ Phác Đầu. Catalog hiện chưa có quần và phụ kiện được gắn niên đại phù hợp để mô tả đầy đủ một bộ triều phục thời kỳ này.',
     gender: 'unisex',
     garmentIds: [
-      'quan_bach_quy',
       'ao_vien_linh_ly_tran',
-      'mu_phac_dau_ly_tran',
-      'ngoc_boi_cung_dinh'
+      'mu_phac_dau_ly_tran'
     ]
   },
   {

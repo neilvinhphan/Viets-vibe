@@ -53,8 +53,8 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
           border: 'border-emerald-200',
           text: 'text-emerald-800',
           badge: 'bg-emerald-100 text-emerald-900 border-emerald-200 font-semibold',
-          title: validationMode === 'genz_remix' ? 'Gen Z Remix Đạt Chuẩn Văn Hóa' : 'Hợp Lệ & Chuẩn Sử',
-          sub: 'Tuân thủ đúng quy tắc văn hóa và cấu trúc phân tầng trang phục.',
+          title: validationMode === 'genz_remix' ? 'Bản phối phù hợp tiêu chí' : 'Khớp quy tắc mô phỏng',
+          sub: 'Các món đồ đang khớp với quy tắc mô phỏng về niên đại và cấu trúc lớp mặc.',
         };
       case 'advisory':
         return {
@@ -62,7 +62,7 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
           border: 'border-amber-200',
           text: 'text-amber-800',
           badge: 'bg-amber-100 text-amber-900 border-amber-200 font-semibold',
-          title: 'Cần Khảo Cứu Thêm',
+          title: 'Cần đối chiếu thêm',
           sub: 'Có lưu ý về thời tiết, chất liệu hoặc phụ kiện cần tinh chỉnh.',
         };
       default:
@@ -71,8 +71,8 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
           border: 'border-rose-200',
           text: 'text-rose-800',
           badge: 'bg-rose-100 text-rose-900 border-rose-200 font-semibold',
-          title: 'Sai Lệch Quy Chuẩn Văn Hóa',
-          sub: 'Xung đột bối cảnh tôn nghiêm, vạt áo hoặc thiếu lớp trang phục bắt buộc.',
+          title: 'Chưa khớp quy tắc mô phỏng',
+          sub: 'Có điểm chưa khớp về bối cảnh, cấu trúc lớp mặc hoặc phối hợp trang phục.',
         };
     }
   };
@@ -224,10 +224,10 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({
           <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center shadow-2xs">
             <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto mb-1.5" />
             <h4 className="text-xs font-semibold text-emerald-900 mb-0.5">
-              Phối y phục hoàn hảo và hài hòa!
+              Không phát hiện xung đột theo các quy tắc mô phỏng.
             </h4>
             <p className="text-[11px] text-emerald-700 leading-relaxed">
-              Bộ trang phục đạt chuẩn mực văn hóa Đại Việt và hài hòa sắc độ với hoàn cảnh sự kiện.
+              Kết quả này phản ánh quy tắc của ứng dụng, không phải xác nhận tính xác thực lịch sử.
             </p>
           </div>
         ) : (
