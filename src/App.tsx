@@ -25,6 +25,7 @@ import { GeminiImageAnalyzerModal } from "./components/GeminiImageAnalyzerModal"
 import { SceneBackground } from "./components/SceneBackground";
 import { SceneSelector } from "./components/SceneSelector";
 import { LookbookAndCompareModal } from "./components/LookbookAndCompareModal";
+import { LookbookPage } from "./components/LookbookPage";
 import { IntroOnboardingModal } from "./components/IntroOnboardingModal";
 import { VietPhucGallery } from "./components/VietPhucGallery";
 import { zenSoundscape } from "./services/zenSoundscape";
@@ -34,7 +35,6 @@ import {
   RotateCcw,
   Share2,
   Check,
-  Layers,
   ShieldCheck,
   AlertTriangle,
   AlertCircle,
@@ -48,50 +48,46 @@ import {
   Send,
   Loader2,
   GitCompare,
-  CircleHelp,
 } from "lucide-react";
 
 export default function App() {
-  // Start with default authentic preset or Gen Z remix
   const defaultPreset = OUTFIT_PRESETS[0];
+
   const [equippedGarmentIds, setEquippedGarmentIds] = useState<string[]>(
     defaultPreset.garmentIds,
   );
 
-  // Scene, Event, Weather & Validation Mode states
   const [activeScene, setActiveScene] = useState<HistoricalScene>(
     HISTORICAL_SCENES[0],
   );
+
   const [sceneOpacity, setSceneOpacity] = useState<"ultra_faint" | "subtle">(
     "subtle",
   );
+
   const [activeEvent, setActiveEvent] = useState<EventType>("concert");
   const [activeWeather, setActiveWeather] = useState<WeatherType>("mat_24");
+
   const [validationMode, setValidationMode] =
     useState<ValidationMode>("genz_remix");
 
-  // Character customization state (Female/Male, Skin Tone)
   const [characterGender, setCharacterGender] = useState<"female" | "male">(
     "female",
   );
-  const [characterSkinTone, setCharacterSkinTone] = useState<string>("#f6d8be");
 
-  // First-impression Onboarding state
-  const [isIntroActive, setIsIntroActive] = useState<boolean>(true);
+  const [characterSkinTone, setCharacterSkinTone] = useState("#f6d8be");
+  const [isIntroActive, setIsIntroActive] = useState(true);
 
-  // 3D Showroom <-> 2D Gen Z Remix Studio 2-way mode
-  const [activeView, setActiveView] = useState<"studio_2d" | "gallery_3d">(
-    "studio_2d",
-  );
-  const [galleryTargetId, setGalleryTargetId] = useState<string>("overview");
+  const [activeView, setActiveView] = useState<
+    "studio_2d" | "gallery_3d" | "lookbook"
+  >("studio_2d");
 
-  // Single exclusive active state for all popovers, menus, and modals
-  // Possible values: 'remix' | 'tools' | 'character_customizer' | 'wardrobe' | 'validation' | 'lookbook' | 'gemini' | 'historical_info' | null
+  const [galleryTargetId, setGalleryTargetId] = useState("overview");
   const [activePopover, setActivePopover] = useState<string | null>(null);
+
   const [selectedGarmentForInfo, setSelectedGarmentForInfo] =
     useState<Garment | null>(null);
 
-  // Split A/B comparison saved variant
   const [savedVariantA, setSavedVariantA] = useState<{
     garments: Garment[];
     validationResult: ValidationResult;
@@ -101,14 +97,9 @@ export default function App() {
     timestamp: number;
   } | null>(null);
 
-  // AI Vibe-to-outfit prompt state
-  const [vibePrompt, setVibePrompt] = useState<string>("");
-  const [isVibeLoading, setIsVibeLoading] = useState<boolean>(false);
-  const [vibeStatusMessage, setVibeStatusMessage] = useState<string | null>(
-    null,
-  );
+  const [vibePrompt, setVibePrompt] = useState("");
+  const [isVibeLoading, setIsVibeLoading] = useState(false);
 
-  // Initial validation result
   const [validationResult, setValidationResult] = useState<ValidationResult>(
     () =>
       validateOutfit(defaultPreset.garmentIds, {
@@ -119,7 +110,6 @@ export default function App() {
       }),
   );
 
-  // Derived booleans from the single activePopover state
   const isRemixMenuOpen = activePopover === "remix";
   const isToolsMenuOpen = activePopover === "tools";
   const isCharacterCustomizerOpen = activePopover === "character_customizer";
@@ -127,16 +117,15 @@ export default function App() {
   const isValidationModalOpen = activePopover === "validation";
   const isLookbookModalOpen = activePopover === "lookbook";
   const isGeminiModalOpen = activePopover === "gemini";
+
   const isHistoricalInfoOpen =
     activePopover === "historical_info" && selectedGarmentForInfo !== null;
 
-  // DOM refs for click-outside detection
   const remixMenuRef = useRef<HTMLDivElement>(null);
   const remixBtnRef = useRef<HTMLButtonElement>(null);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
   const toolsBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Click outside to dismiss header popovers
   useOnClickOutside(
     remixMenuRef,
     () => {
@@ -156,12 +145,19 @@ export default function App() {
   const [wardrobeCategory, setWardrobeCategory] = useState<
     GarmentCategory | "all"
   >("all");
-  const [isZenMode, setIsZenMode] = useState<boolean>(false);
-  const [isZenAudioMuted, setIsZenAudioMuted] = useState<boolean>(() => {
+
+  const [isZenMode, setIsZenMode] = useState(false);
+
+  const [isZenAudioMuted, setIsZenAudioMuted] = useState(() => {
     return localStorage.getItem("zen_soundscape_muted") === "true";
   });
 
-  // Zen Soundscape: Plays soft, ambient traditional Vietnamese instruments (cầm, tranh)
+  const switchView = (view: "studio_2d" | "gallery_3d" | "lookbook") => {
+    setActivePopover(null);
+    setIsZenMode(false);
+    setActiveView(view);
+  };
+
   useEffect(() => {
     if (isZenMode && !isZenAudioMuted) {
       zenSoundscape.start();
@@ -170,14 +166,12 @@ export default function App() {
     }
   }, [isZenMode, isZenAudioMuted]);
 
-  // Clean up audio on unmount
   useEffect(() => {
     return () => {
       zenSoundscape.stop();
     };
   }, []);
 
-  // Keyboard shortcut: Escape exits active popover or Zen Mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -188,12 +182,17 @@ export default function App() {
         }
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [activePopover, isZenMode]);
 
   const handleToggleZenAudio = (e: React.MouseEvent) => {
     e.stopPropagation();
+
     setIsZenAudioMuted((prev) => {
       const next = !prev;
       localStorage.setItem("zen_soundscape_muted", String(next));
@@ -201,7 +200,6 @@ export default function App() {
     });
   };
 
-  // Trigger Cultural Validation whenever equipped garments, mode, scene, event, or weather change
   useEffect(() => {
     const options = {
       validationMode,
@@ -210,11 +208,9 @@ export default function App() {
       weatherType: activeWeather,
     };
 
-    // Immediate client-side validation
     const clientResult = validateOutfit(equippedGarmentIds, options);
     setValidationResult(clientResult);
 
-    // Sync with backend Express API
     fetch("/api/validate-outfit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -246,39 +242,47 @@ export default function App() {
       .filter((g): g is Garment => g !== undefined);
   }, [equippedGarmentIds]);
 
-  // Dynamic ambient lighting theme based on the historical era of the equipped outfit
   const currentEra = useMemo(
     () => getOutfitEra(equippedGarments),
     [equippedGarments],
   );
+
   const eraLighting = ERA_LIGHTING_THEMES[currentEra];
 
-  // Toggle equipping / unequipping a garment
   const handleToggleGarment = (garment: Garment) => {
     setEquippedGarmentIds((prev) => {
       if (prev.includes(garment.id)) {
         return prev.filter((id) => id !== garment.id);
-      } else {
-        let filtered = [...prev];
-        if (
-          ["robe", "outerwear", "bottom", "headwear", "footwear"].includes(
-            garment.category,
-          )
-        ) {
-          filtered = filtered.filter((id) => {
-            const existing = GARMENTS.find((g) => g.id === id);
-            return existing?.category !== garment.category;
-          });
-        }
-        return [...filtered, garment.id];
       }
+
+      let filtered = [...prev];
+
+      if (
+        ["robe", "outerwear", "bottom", "headwear", "footwear"].includes(
+          garment.category,
+        )
+      ) {
+        filtered = filtered.filter((id) => {
+          const existing = GARMENTS.find((g) => g.id === id);
+          return existing?.category !== garment.category;
+        });
+      }
+
+      return [...filtered, garment.id];
     });
   };
 
   const handleApplyPreset = (preset: OutfitPreset) => {
     setEquippedGarmentIds(preset.garmentIds);
-    if (preset.suggestedEvent) setActiveEvent(preset.suggestedEvent);
-    if (preset.suggestedWeather) setActiveWeather(preset.suggestedWeather);
+
+    if (preset.suggestedEvent) {
+      setActiveEvent(preset.suggestedEvent);
+    }
+
+    if (preset.suggestedWeather) {
+      setActiveWeather(preset.suggestedWeather);
+    }
+
     setActivePopover(null);
   };
 
@@ -289,32 +293,33 @@ export default function App() {
       let updatedIds = [...prevIds];
 
       if (newGender === "male") {
-        // 1. Swap female Five-panel tunic to male Five-panel tunic
         updatedIds = updatedIds.map((id) => {
-          if (id === "ao_ngu_than_tay_chen_nu")
+          if (id === "ao_ngu_than_tay_chen_nu") {
             return "ao_ngu_than_tay_chen_nam";
+          }
+
           return id;
         });
 
-        // 2. Remove female-only undergarments and skirts without resetting rest of outfit
         const femaleOnlyToRemove = [
           "yem_do_co_tron",
           "yem_bach_hoang_gia",
           "chan_vay_ngan_genz",
         ];
+
         updatedIds = updatedIds.filter(
           (id) => !femaleOnlyToRemove.includes(id),
         );
       } else {
-        // 1. Swap male Five-panel tunic to female Five-panel tunic
         updatedIds = updatedIds.map((id) => {
-          if (id === "ao_ngu_than_tay_chen_nam")
+          if (id === "ao_ngu_than_tay_chen_nam") {
             return "ao_ngu_than_tay_chen_nu";
+          }
+
           return id;
         });
       }
 
-      // Preserve all unisex items (Jeans, Sneakers, Boots, Headwear, Accessories, Ao Dai) intact!
       return updatedIds;
     });
   };
@@ -325,15 +330,17 @@ export default function App() {
 
     categoriesToPick.forEach((cat) => {
       const itemsInCat = GARMENTS.filter((g) => g.category === cat);
+
       if (itemsInCat.length > 0) {
         const randomItem =
           itemsInCat[Math.floor(Math.random() * itemsInCat.length)];
+
         randomIds.push(randomItem.id);
       }
     });
 
-    // 60% chance of adding an accessory
     const accessories = GARMENTS.filter((g) => g.category === "accessory");
+
     if (Math.random() > 0.4 && accessories.length > 0) {
       randomIds.push(
         accessories[Math.floor(Math.random() * accessories.length)].id,
@@ -368,13 +375,12 @@ export default function App() {
     }
   };
 
-  // AI Vibe-to-Outfit Handler
   const handleApplyVibe = async (customPrompt?: string) => {
     const promptToUse = (customPrompt || vibePrompt).trim();
+
     if (!promptToUse) return;
 
     setIsVibeLoading(true);
-    setVibeStatusMessage("Đang thiết kế bản phối theo vibe...");
 
     try {
       const res = await fetch("/api/vibe-to-outfit", {
@@ -382,18 +388,22 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: promptToUse }),
       });
+
       const data = await res.json();
 
       if (data.success) {
         if (Array.isArray(data.garmentIds) && data.garmentIds.length > 0) {
           setEquippedGarmentIds(data.garmentIds);
         }
+
         if (data.sceneId) {
           const matchedScene = HISTORICAL_SCENES.find(
             (s) => s.id === data.sceneId,
           );
+
           if (matchedScene) setActiveScene(matchedScene);
         }
+
         if (data.eventType) setActiveEvent(data.eventType);
         if (data.weatherType) setActiveWeather(data.weatherType);
 
@@ -404,7 +414,6 @@ export default function App() {
       console.warn("Vibe generation error:", err);
     } finally {
       setIsVibeLoading(false);
-      setVibeStatusMessage(null);
     }
   };
 
@@ -412,6 +421,7 @@ export default function App() {
     const validIds = garmentIds.filter((id) =>
       GARMENTS.some((g) => g.id === id),
     );
+
     if (validIds.length > 0) {
       setEquippedGarmentIds(validIds);
     }
@@ -425,31 +435,26 @@ export default function App() {
     setIsIntroActive(false);
   };
 
-  const handleReplayIntro = () => {
-    setActivePopover(null);
-    setIsZenMode(false);
-    setActiveView("studio_2d");
-    setIsIntroActive(true);
-  };
-
-  // Two-way bridge: Seamlessly load garment & scene from 3D showroom into 2D studio
   const handleRemixFrom3D = (galleryId: string) => {
     const config = GALLERY_3D_TO_2D_MAP[galleryId];
+
     if (config) {
       setEquippedGarmentIds(config.garmentIds);
       setCharacterGender(config.gender);
+
       const targetScene = HISTORICAL_SCENES.find(
         (s) => s.id === config.sceneId,
       );
+
       if (targetScene) setActiveScene(targetScene);
     }
+
     setActiveView("studio_2d");
     zenSoundscape.playDanTranhPluck(587.33, undefined, 0.7);
   };
 
-  const { metrics, issues, eraSummary } = validationResult;
+  const { metrics, issues } = validationResult;
 
-  // Render floating status pill based on validation result
   const renderValidationStatusPill = () => {
     if (equippedGarments.length === 0) {
       return (
@@ -484,13 +489,16 @@ export default function App() {
         >
           <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+
           <span className="font-royal text-[13px] font-semibold tracking-wide hidden sm:inline">
             {metrics.overallScore}%{" "}
             {validationMode === "genz_remix" ? "Đạt Chuẩn Remix" : "Chuẩn Sử"}
           </span>
+
           <span className="font-royal text-[11px] font-semibold sm:hidden">
             {metrics.overallScore}% Chuẩn
           </span>
+
           <span className="text-[10.5px] text-emerald-700/80 font-normal hidden md:inline">
             (Hài hòa: {validationResult.colorHarmonyScore}%)
           </span>
@@ -512,12 +520,15 @@ export default function App() {
         >
           <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
           <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+
           <span className="font-royal text-[13px] font-semibold tracking-wide hidden sm:inline">
             {metrics.overallScore}% Cần Khảo Cứu
           </span>
+
           <span className="font-royal text-[11px] font-semibold sm:hidden">
             {metrics.overallScore}% Lưu ý
           </span>
+
           <span className="text-[10.5px] text-amber-700/80 font-normal hidden md:inline">
             ({issues.length} lưu ý)
           </span>
@@ -538,12 +549,15 @@ export default function App() {
       >
         <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
         <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+
         <span className="font-royal text-[13px] font-semibold tracking-wide hidden sm:inline">
           {metrics.overallScore}% Sai Lệch Văn Hóa
         </span>
+
         <span className="font-royal text-[11px] font-semibold sm:hidden">
           {metrics.overallScore}% Lỗi
         </span>
+
         <span className="text-[10.5px] text-rose-700/80 font-normal hidden md:inline">
           ({issues.length} cảnh báo)
         </span>
@@ -557,32 +571,32 @@ export default function App() {
         inert={isIntroActive}
         className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col bg-[#faf8f5] text-stone-800 font-sans selection:bg-amber-100 selection:text-amber-900"
       >
-        {/* Top Navbar */}
         <header
           className={`relative z-50 min-h-[54px] w-full shrink-0 bg-[#faf8f5] border-b border-stone-200/80 px-3.5 py-2.5 md:px-6 md:py-2 flex md:flex-wrap items-center justify-between gap-2 transition-all duration-500 transform ${
+            activeView === "lookbook" ? "flex-wrap" : ""
+          } ${
             isZenMode || isIntroActive
               ? "-translate-y-full opacity-0 pointer-events-none"
               : "translate-y-0 opacity-100"
           }`}
         >
-          {/* Left: Branding & 2D/3D Mode Switcher */}
           <div className="contents md:flex md:items-center md:gap-3.5 whitespace-nowrap shrink-0">
             <div className="flex items-baseline gap-1.5 sm:gap-2">
               <h1 className="text-base md:text-lg font-semibold font-royal tracking-wide text-stone-900 whitespace-nowrap">
                 <span className="md:hidden">Việt Phục</span>
                 <span className="hidden md:inline">Việt Phục Remix</span>
               </h1>
+
               <span className="hidden lg:inline text-xs font-serif italic text-stone-500">
                 — Gen Z Studio
               </span>
             </div>
 
-            {/* Mode Switcher: 2D Studio <-> 3D Showroom */}
             <div className="flex items-center p-0.5 rounded-full bg-stone-200/90 border border-stone-300/80 text-xs font-semibold shadow-2xs shrink-0">
               <button
                 id="view-switch-2d-btn"
                 type="button"
-                onClick={() => setActiveView("studio_2d")}
+                onClick={() => switchView("studio_2d")}
                 className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-xs ${
                   activeView === "studio_2d"
                     ? "bg-white text-stone-900 shadow-2xs font-bold"
@@ -594,12 +608,13 @@ export default function App() {
                 <span className="hidden lg:inline">Bàn Phối 2D</span>
                 <span className="lg:hidden">2D</span>
               </button>
+
               <button
                 id="view-switch-3d-btn"
                 type="button"
                 onClick={() => {
                   setGalleryTargetId("overview");
-                  setActiveView("gallery_3d");
+                  switchView("gallery_3d");
                 }}
                 className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-xs ${
                   activeView === "gallery_3d"
@@ -612,17 +627,34 @@ export default function App() {
                 <span className="hidden lg:inline">Hành Lang 3D</span>
                 <span className="lg:hidden">3D</span>
               </button>
+
+              <button
+                id="view-switch-lookbook-btn"
+                type="button"
+                onClick={() => switchView("lookbook")}
+                aria-pressed={activeView === "lookbook"}
+                className={`flex items-center justify-center px-3 py-1.5 rounded-full transition-all text-xs ${
+                  activeView === "lookbook"
+                    ? "bg-white text-[#913d2f] shadow-2xs font-bold"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+              >
+                Lookbook
+              </button>
             </div>
           </div>
 
-          {/* Center: Validation Status Pill */}
-          <div className="hidden md:flex items-center justify-center shrink-0 md:mx-1">
-            {renderValidationStatusPill()}
-          </div>
+          {activeView !== "lookbook" && (
+            <div className="hidden md:flex items-center justify-center shrink-0 md:mx-1">
+              {renderValidationStatusPill()}
+            </div>
+          )}
 
-          {/* Right: Quick actions cluster */}
-          <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-            {/* Remix / Presets Dropdown (includes ✨ AI Vibe-to-Outfit input) */}
+          <div
+            className={`${
+              activeView === "lookbook" ? "hidden" : "flex"
+            } items-center gap-1.5 md:gap-2 shrink-0`}
+          >
             <div className="relative">
               <button
                 id="nav-remix-btn"
@@ -644,7 +676,6 @@ export default function App() {
                 <ChevronDown className="w-3 h-3 text-stone-400 hidden md:inline md:ml-1" />
               </button>
 
-              {/* Remix Popover Menu */}
               {isRemixMenuOpen && (
                 <div
                   id="nav-remix-popover"
@@ -656,6 +687,7 @@ export default function App() {
                       <Sparkles className="w-3.5 h-3.5 text-[#996515]" />
                       Phối Mẫu & Trợ Lý Vibe AI
                     </span>
+
                     <button
                       onClick={() => setActivePopover(null)}
                       className="text-stone-400 hover:text-stone-700 p-0.5"
@@ -664,13 +696,13 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* --- 1. AI VIBE-TO-OUTFIT INPUT --- */}
                   <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-amber-950 flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-[#996515]" />✨ AI
-                        Phối Theo Vibe
+                        <Sparkles className="w-3 h-3 text-[#996515]" />
+                        ✨ AI Phối Theo Vibe
                       </span>
+
                       <span className="text-[9.5px] text-amber-800/80 font-mono">
                         Gemini 2.5 Flash
                       </span>
@@ -687,6 +719,7 @@ export default function App() {
                         placeholder="VD: Đi concert trời mát, thích Áo Ngũ Thân..."
                         className="flex-1 px-2.5 py-1.5 rounded-lg bg-white border border-amber-300/80 text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
                       />
+
                       <button
                         onClick={() => handleApplyVibe()}
                         disabled={isVibeLoading}
@@ -701,7 +734,6 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* 1-Click Quick Vibe Chips */}
                     <div className="flex flex-wrap gap-1 pt-1">
                       {[
                         {
@@ -736,7 +768,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Random Remix action */}
                   <button
                     onClick={handleRandomRemix}
                     className="w-full flex items-center gap-2 p-2 rounded-xl text-left text-xs text-amber-950 hover:bg-amber-50/80 transition-colors group border border-stone-200/80"
@@ -744,6 +775,7 @@ export default function App() {
                     <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center text-amber-800 group-hover:scale-110 transition-transform">
                       <Dices className="w-3.5 h-3.5" />
                     </div>
+
                     <div>
                       <div className="font-semibold text-stone-900">
                         Phối Ngẫu Nhiên (Remix)
@@ -754,7 +786,6 @@ export default function App() {
                     </div>
                   </button>
 
-                  {/* Preset List */}
                   <div className="pt-1">
                     <div className="px-1 text-[10px] uppercase tracking-wider text-stone-500 font-semibold mb-1">
                       Bộ sưu tập có sẵn:
@@ -765,7 +796,9 @@ export default function App() {
                         const isEquipped = preset.garmentIds.every((id) =>
                           equippedGarmentIds.includes(id),
                         );
+
                         const isGenZ = preset.presetType === "genz_remix";
+
                         return (
                           <button
                             key={preset.id}
@@ -783,12 +816,15 @@ export default function App() {
                                     GEN Z
                                   </span>
                                 )}
+
                                 <span className="truncate">{preset.name}</span>
                               </div>
+
                               <div className="text-[9.5px] text-stone-500 truncate">
                                 {preset.dynastyName}
                               </div>
                             </div>
+
                             {isEquipped && (
                               <Check className="w-3.5 h-3.5 text-amber-700 shrink-0" />
                             )}
@@ -801,7 +837,6 @@ export default function App() {
               )}
             </div>
 
-            {/* Tools Menu (Simplified: SQL DDL hidden to focus 100% on fashion) */}
             <div className="relative">
               <button
                 id="nav-tools-btn"
@@ -831,6 +866,7 @@ export default function App() {
                     <span className="text-xs font-semibold text-stone-800">
                       Công Cụ Bổ Sung
                     </span>
+
                     <button
                       onClick={() => setActivePopover(null)}
                       className="text-stone-400 hover:text-stone-700"
@@ -838,6 +874,7 @@ export default function App() {
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
+
                   <button
                     id="mobile-validation-status"
                     onClick={() => setActivePopover("validation")}
@@ -856,27 +893,32 @@ export default function App() {
                     <span>
                       {equippedGarments.length === 0
                         ? "Chưa Mặc"
-                        : `${metrics.overallScore}% ${metrics.status === "authentic" ? "Chuẩn" : metrics.status === "advisory" ? "Lưu ý" : "Lỗi"}`}
+                        : `${metrics.overallScore}% ${
+                            metrics.status === "authentic"
+                              ? "Chuẩn"
+                              : metrics.status === "advisory"
+                                ? "Lưu ý"
+                                : "Lỗi"
+                          }`}
                     </span>
                   </button>
+
                   <button
-                    onClick={() => {
-                      setActivePopover("gemini");
-                    }}
+                    onClick={() => setActivePopover("gemini")}
                     className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs text-stone-700 hover:bg-stone-100 transition-colors"
                   >
                     <Camera className="w-3.5 h-3.5 text-amber-600" />
                     <span>Giám Định Cổ Phục AI</span>
                   </button>
+
                   <button
-                    onClick={() => {
-                      setActivePopover("lookbook");
-                    }}
+                    onClick={() => setActivePopover("lookbook")}
                     className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs text-stone-700 hover:bg-stone-100 transition-colors"
                   >
                     <GitCompare className="w-3.5 h-3.5 text-sky-600" />
                     <span>So Sánh Phương Án A/B</span>
                   </button>
+
                   <button
                     onClick={() => {
                       setIsZenMode(true);
@@ -887,6 +929,7 @@ export default function App() {
                     <Sparkles className="w-3.5 h-3.5 text-[#996515]" />
                     <span>Chế độ Chiêm Ngưỡng (Zen)</span>
                   </button>
+
                   <button
                     onClick={() => {
                       handleResetOutfit();
@@ -901,7 +944,6 @@ export default function App() {
               )}
             </div>
 
-            {/* Zen Mode Button (The Single Clean Zen Toggle - Hidden on mobile) */}
             <button
               id="nav-zen-mode-btn"
               onClick={() => {
@@ -909,18 +951,15 @@ export default function App() {
                 setIsZenMode(true);
               }}
               className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-white hover:bg-stone-100/90 text-stone-700 border-stone-200/90 shadow-2xs text-xs font-medium transition-all shrink-0"
-              title="Chế độ Chiêm Ngưỡng (Zen Mode với Âm Điệu Cầm, Tranh)"
+              title="Chế độ Chiêm Ngưỡng"
             >
               <Sparkles className="w-3.5 h-3.5 text-[#996515]" />
               <span className="hidden sm:inline">Chiêm Ngưỡng</span>
             </button>
 
-            {/* Lookbook 9:16 & Share Button */}
             <button
               id="nav-lookbook-share-btn"
-              onClick={() => {
-                setActivePopover("lookbook");
-              }}
+              onClick={() => setActivePopover("lookbook")}
               className="w-8 h-8 flex items-center justify-center p-0 md:w-auto md:h-auto md:px-3.5 md:py-1.5 rounded-full bg-stone-900 hover:bg-stone-800 text-stone-50 text-xs font-semibold transition-all shadow-xs hover:scale-105 active:scale-95 shrink-0"
               title="Xuất Thẻ Lookbook 9:16 & So Sánh Phương Án"
             >
@@ -930,7 +969,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* Transparent backdrop for dismissing dropdown popovers when clicking outside */}
         {(isRemixMenuOpen || isToolsMenuOpen) && (
           <div
             id="popover-dismiss-backdrop"
@@ -939,8 +977,16 @@ export default function App() {
           />
         )}
 
-        {/* Main Stage Workspace: 2D Studio vs 3D Heritage Gallery */}
-        {activeView === "gallery_3d" ? (
+        {activeView === "lookbook" ? (
+          <LookbookPage
+            equippedGarments={equippedGarments}
+            activeScene={activeScene}
+            gender={characterGender}
+            skinTone={characterSkinTone}
+            onBackToStudio={() => switchView("studio_2d")}
+            onOpenOutfitCard={() => setActivePopover("lookbook")}
+          />
+        ) : activeView === "gallery_3d" ? (
           <main className="flex-1 min-h-0 relative overflow-hidden z-10 w-full bg-[#120c09]">
             <VietPhucGallery
               initialGarmentId={galleryTargetId}
@@ -961,7 +1007,6 @@ export default function App() {
               isZenMode ? "cursor-pointer" : ""
             }`}
           >
-            {/* Dynamic Background Radial Lighting */}
             <div
               id="era-radial-lighting-primary"
               className="absolute inset-0 pointer-events-none transition-all duration-700 ease-out"
@@ -986,10 +1031,11 @@ export default function App() {
               }}
             />
 
-            {/* --- MOUNTED SCENE BACKGROUND (MODULE BỐI CẢNH ĐỊA PHƯƠNG) --- */}
-            <SceneBackground scene={activeScene} opacityLevel={sceneOpacity} />
+            <SceneBackground
+              scene={activeScene}
+              opacityLevel={sceneOpacity}
+            />
 
-            {/* --- MOUNTED SCENE SELECTOR (BỐI CẢNH, SỰ KIỆN, THỜI TIẾT) --- */}
             <SceneSelector
               scenes={HISTORICAL_SCENES}
               activeScene={activeScene}
@@ -1009,7 +1055,6 @@ export default function App() {
               isIntroActive={isIntroActive}
             />
 
-            {/* Subtle Zen Mode Overlay with Audio Toggle & Exit Hint */}
             {isZenMode && (
               <div
                 id="zen-mode-overlay"
@@ -1033,12 +1078,14 @@ export default function App() {
                   {!isZenAudioMuted ? (
                     <>
                       <Volume2 className="w-3.5 h-3.5 text-amber-300 animate-pulse shrink-0" />
+
                       <span className="font-serif italic text-[11px]">
                         Cầm • Tranh
                       </span>
+
                       <span className="flex h-1.5 w-1.5 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
                       </span>
                     </>
                   ) : (
@@ -1070,15 +1117,16 @@ export default function App() {
                   <span className="hidden sm:inline">
                     Nhấp phông nền hoặc bấm
                   </span>
+
                   <kbd className="px-1.5 py-0.5 rounded bg-white/15 font-mono text-[10px] text-white">
                     Esc
                   </kbd>
+
                   <span>để trở về</span>
                 </div>
               </div>
             )}
 
-            {/* 2D Vector Avatar Canvas with Exploded View & Mobile Dock */}
             <Avatar2D
               equippedGarments={equippedGarments}
               eraTheme={eraLighting}
@@ -1091,8 +1139,9 @@ export default function App() {
                 )
               }
               onCloseCustomizer={() => {
-                if (activePopover === "character_customizer")
+                if (activePopover === "character_customizer") {
                   setActivePopover(null);
+                }
               }}
               gender={characterGender}
               onGenderChange={handleGenderChange}
@@ -1103,7 +1152,9 @@ export default function App() {
                 setActivePopover("historical_info");
               }}
               onRemoveGarment={(id) =>
-                setEquippedGarmentIds((prev) => prev.filter((x) => x !== id))
+                setEquippedGarmentIds((prev) =>
+                  prev.filter((x) => x !== id),
+                )
               }
               onSelectCategoryForWardrobe={(cat) => {
                 setWardrobeCategory(cat);
@@ -1116,7 +1167,6 @@ export default function App() {
           </main>
         )}
 
-        {/* Wardrobe Drawer */}
         {isWardrobeOpen && (
           <>
             <div
@@ -1146,13 +1196,14 @@ export default function App() {
           </>
         )}
 
-        {/* Cultural Validation Modal */}
         {isValidationModalOpen && (
           <div
             id="validation-modal-overlay"
             className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5 bg-stone-900/40 backdrop-blur-xs animate-fadeIn"
             onClick={(e) => {
-              if (e.target === e.currentTarget) setActivePopover(null);
+              if (e.target === e.currentTarget) {
+                setActivePopover(null);
+              }
             }}
           >
             <div className="w-full max-w-2xl max-h-[88vh] bg-[#faf8f5] border border-stone-200/90 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fadeIn text-stone-800">
@@ -1163,6 +1214,7 @@ export default function App() {
                 onToggleValidationMode={(mode) => setValidationMode(mode)}
                 onInspectGarmentById={(id) => {
                   const g = GARMENTS.find((item) => item.id === id);
+
                   if (g) {
                     setSelectedGarmentForInfo(g);
                     setActivePopover("historical_info");
@@ -1174,11 +1226,12 @@ export default function App() {
           </div>
         )}
 
-        {/* Historical Info Card Modal */}
         {isHistoricalInfoOpen && selectedGarmentForInfo && (
           <HistoricalInfoModal
             garment={selectedGarmentForInfo}
-            isEquipped={equippedGarmentIds.includes(selectedGarmentForInfo.id)}
+            isEquipped={equippedGarmentIds.includes(
+              selectedGarmentForInfo.id,
+            )}
             onClose={() => {
               setSelectedGarmentForInfo(null);
               setActivePopover(null);
@@ -1193,7 +1246,6 @@ export default function App() {
           />
         )}
 
-        {/* Lookbook 9:16 & Split A/B Comparison Modal */}
         <LookbookAndCompareModal
           isOpen={isLookbookModalOpen}
           onClose={() => setActivePopover(null)}
@@ -1207,13 +1259,13 @@ export default function App() {
           onApplyVariantA={handleApplyVariantA}
         />
 
-        {/* Gemini AI Image Understanding Modal */}
         <GeminiImageAnalyzerModal
           isOpen={isGeminiModalOpen}
           onClose={() => setActivePopover(null)}
           onApplyIdentifiedGarments={handleApplyIdentifiedGarments}
         />
       </div>
+
       {isIntroActive && (
         <IntroOnboardingModal
           onEnterStudio={() => handleEnterFromIntro("studio_2d")}
