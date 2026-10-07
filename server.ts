@@ -6,11 +6,16 @@ import dotenv from 'dotenv';
 import { GARMENTS, OUTFIT_PRESETS } from './src/data/garments';
 import { validateOutfit } from './src/services/culturalValidationEngine';
 import { POSTGRESQL_SCHEMA_SQL, SCHEMA_TABLES } from './src/data/postgresSchema';
+import { findSimilarImages } from './src/services/findSimilarImages.server';
+import { fallbackQueries, mainGarment } from './src/services/referenceImageMatching';
+import { BROWSER_USER_AGENT, parseBingImageResults, readSearchHtml } from './src/services/webImageSearch.server';
+import { fetchPublicImage, validateImageUrl } from './src/services/imageProxy.server';
+export { buildHybridSearchQueries } from './src/services/referenceImageMatching';
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -57,7 +62,80 @@ app.get('/api/garments', (req, res) => {
   });
 });
 
-// Cultural Validation Engine Endpoint
+// Zero-key live Bing Images search; the scorer supplies catalog fallback when no candidates qualify.
+export async function searchWebImagesLive(query: string) {
+  const url = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&qft=+filterui:aspect-tall&setlang=vi&adlt=strict`;
+  const response = await fetch(url, {
+    headers: { 'User-Agent': BROWSER_USER_AGENT, Accept: 'text/html', 'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8' },
+    signal: AbortSignal.timeout(10000),
+  });
+  const html = await readSearchHtml(response);
+  const images = parseBingImageResults(html);
+  if (!images.length && !/no (?:image )?results|couldn.t find any|không (?:có|tìm thấy) kết quả/i.test(html)) {
+    throw new Error('Bing returned a challenge or an unsupported search page');
+  }
+  return images;
+}
+
+let activeImageDownloads = 0;
+app.get('/api/image-proxy', async (req, res) => {
+  const url = req.query.url;
+  if (typeof url !== 'string') return res.status(400).json({ error: 'Cần URL ảnh hợp lệ.' });
+  try { validateImageUrl(url); } catch { return res.status(400).json({ error: 'URL ảnh không được hỗ trợ.' }); }
+  if (activeImageDownloads >= 16) return res.status(429).json({ error: 'Đang tải nhiều ảnh. Vui lòng thử lại.' });
+  activeImageDownloads++;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  const onClose = () => controller.abort();
+  res.on('close', onClose);
+  try {
+    const image = await fetchPublicImage(url, controller.signal);
+    res.set({ 'Content-Type': image.mime, 'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'public, max-age=3600', 'Content-Security-Policy': "default-src 'none'; sandbox" });
+    return res.send(image.bytes);
+  } catch {
+    if (!res.destroyed) return res.status(502).json({ error: 'Nguồn ảnh không cho tải hoặc ảnh không hợp lệ.' });
+  } finally {
+    activeImageDownloads--; clearTimeout(timer); res.off('close', onClose);
+  }
+});
+
+const referenceSearchPending = new Map<string, Promise<Awaited<ReturnType<typeof findSimilarImages>>>>();
+app.post('/api/lookbook/find-similar-images', async (req, res) => {
+  const ids = req.body?.garmentIds;
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > 24 || ids.some(id => typeof id !== 'string' || !GARMENTS.some(g => g.id === id))) {
+    return res.status(400).json({ error: 'Hãy gửi garmentIds hợp lệ của bản phối (1–24 món).' });
+  }
+  // Resolve all colors, layers, footwear and accessories from the canonical wardrobe.
+  const garments = GARMENTS.filter(g => ids.includes(g.id));
+  if (!mainGarment(garments)) return res.status(400).json({ error: 'Hãy chọn áo chính trước khi tìm ảnh mẫu.' });
+  const query = req.body.query;
+  const provided = req.body.queries;
+  const validQuery = (value: unknown): value is string => typeof value === 'string' && value.trim().length >= 3 && value.length <= 220;
+  const queryKeys = ['remixSearchQuery', 'styleSearchQuery', 'traditionalSearchQuery'] as const;
+  if ((query !== undefined && !validQuery(query)) || (provided !== undefined && (!provided || typeof provided !== 'object' || Array.isArray(provided) || !queryKeys.every(k => validQuery(provided[k])))) || (query !== undefined && provided !== undefined)) {
+    return res.status(400).json({ error: 'Từ khóa cần từ 3–220 ký tự; gửi query hoặc đủ ba queries.' });
+  }
+  const customQueries = provided ? Object.fromEntries(queryKeys.map(k => [k, provided[k].trim()])) as ReturnType<typeof fallbackQueries>
+    : query ? { remixSearchQuery: query.trim(), styleSearchQuery: query.trim(), traditionalSearchQuery: query.trim() } : undefined;
+  const key = JSON.stringify([garments.map(g => g.id).sort(), customQueries]);
+  res.setHeader('Cache-Control', 'no-store');
+  let pending = referenceSearchPending.get(key);
+  try {
+    if (!pending) {
+      if (referenceSearchPending.size >= 8) return res.status(429).json({ error: 'Đang có nhiều lượt tìm ảnh. Vui lòng thử lại sau.' });
+      pending = findSimilarImages(garments, { search: searchWebImagesLive }, customQueries);
+      referenceSearchPending.set(key, pending);
+    }
+    const result = await pending;
+    return res.json(result);
+  } catch {
+    return res.status(503).json({ error: 'Chưa tìm được ảnh trên Web. Bing có thể đang giới hạn truy cập hoặc kết nối bị gián đoạn. Hãy thử lại.' });
+  } finally {
+    if (pending && referenceSearchPending.get(key) === pending) referenceSearchPending.delete(key);
+  }
+});
+
 app.post('/api/validate-outfit', (req, res) => {
   try {
     const { garmentIds, validationMode, sceneId, eventType, weatherType } = req.body;

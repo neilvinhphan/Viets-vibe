@@ -25,6 +25,7 @@ import { GeminiImageAnalyzerModal } from "./components/GeminiImageAnalyzerModal"
 import { SceneBackground } from "./components/SceneBackground";
 import { SceneSelector } from "./components/SceneSelector";
 import { LookbookAndCompareModal } from "./components/LookbookAndCompareModal";
+import type { ReferenceOutfitImage } from "./data/referenceOutfits";
 import { IntroOnboardingModal } from "./components/IntroOnboardingModal";
 import { VietPhucGallery } from "./components/VietPhucGallery";
 import { zenSoundscape } from "./services/zenSoundscape";
@@ -57,6 +58,9 @@ export default function App() {
   const [equippedGarmentIds, setEquippedGarmentIds] = useState<string[]>(
     defaultPreset.garmentIds,
   );
+  const referenceOutfitKey = [...equippedGarmentIds].sort().join('|');
+  const [referenceSelection, setReferenceSelection] = useState<{ outfitKey: string; image: ReferenceOutfitImage } | null>(null);
+  useEffect(() => { setReferenceSelection(null); }, [referenceOutfitKey]);
 
   // Scene, Event, Weather & Validation Mode states
   const [activeScene, setActiveScene] = useState<HistoricalScene>(
@@ -1205,6 +1209,8 @@ export default function App() {
           savedVariantA={savedVariantA}
           onSaveCurrentAsVariantA={handleSaveCurrentAsVariantA}
           onApplyVariantA={handleApplyVariantA}
+          selectedReferenceImage={referenceSelection?.outfitKey === referenceOutfitKey ? referenceSelection.image : null}
+          onSelectReferenceImage={(image) => setReferenceSelection({ outfitKey: referenceOutfitKey, image })}
         />
 
         {/* Gemini AI Image Understanding Modal */}
