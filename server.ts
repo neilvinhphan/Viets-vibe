@@ -64,18 +64,36 @@ app.get('/api/garments', (req, res) => {
 });
 
 // Zero-key live Bing Images search; the scorer supplies catalog fallback when no candidates qualify.
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
+}
+const webSearchCache = new Map<string, CacheEntry<Awaited<ReturnType<typeof parseBingImageResults>>>>();
+const lookbookResultCache = new Map<string, CacheEntry<Awaited<ReturnType<typeof findSimilarImages>>>>();
+
+// Zero-key live Bing Images search; the scorer supplies catalog fallback when no candidates qualify.
 export async function searchWebImagesLive(query: string) {
+  const cleanQuery = query.replace(/chụp toàn thân rõ trang phục/gi, '').replace(/\s+/g, ' ').trim() || query;
+  const cached = webSearchCache.get(cleanQuery);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
   try {
-    const url = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&qft=+filterui:aspect-tall&setlang=vi&adlt=strict`;
+    const url = `https://www.bing.com/images/search?q=${encodeURIComponent(cleanQuery)}&qft=+filterui:aspect-tall&setlang=vi&adlt=strict`;
     const response = await fetch(url, {
       headers: { 'User-Agent': BROWSER_USER_AGENT, Accept: 'text/html', 'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8' },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(4500),
     });
     const html = await readSearchHtml(response);
     const images = parseBingImageResults(html);
+    if (webSearchCache.size >= 100) {
+      const oldestKey = webSearchCache.keys().next().value;
+      if (oldestKey) webSearchCache.delete(oldestKey);
+    }
+    webSearchCache.set(cleanQuery, { data: images, expiresAt: Date.now() + 10 * 60 * 1000 });
     return images;
   } catch (error) {
-    console.warn(`searchWebImagesLive failed for query "${query}":`, error);
+    console.warn(`searchWebImagesLive failed for query "${cleanQuery}":`, error);
     return [];
   }
 }
@@ -123,6 +141,12 @@ app.post('/api/lookbook/find-similar-images', async (req, res) => {
     : query ? { remixSearchQuery: query.trim(), styleSearchQuery: query.trim(), traditionalSearchQuery: query.trim() } : undefined;
   const key = JSON.stringify([garments.map(g => g.id).sort(), customQueries]);
   res.setHeader('Cache-Control', 'no-store');
+
+  const cached = lookbookResultCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return res.json(cached.data);
+  }
+
   let pending = referenceSearchPending.get(key);
   try {
     if (!pending) {
@@ -140,8 +164,15 @@ app.post('/api/lookbook/find-similar-images', async (req, res) => {
         candidates: fallbackImages.map(({ imageUrl, matchScore, matchReason }) => ({ imageUrl, matchScore, matchReason })),
         searchMode: 'catalog',
         rankingMode: 'fallback',
-        warning: 'Không tìm thấy ảnh trên Web. Đã tự động hiển thị ảnh phù hợp nhất từ kho tham khảo cổ phục.',
+        warning: 'Gợi ý ảnh trang phục thực tế có phom dáng và sắc độ gần nhất với bản phối của bạn.',
       });
+    }
+    if (result.searchMode === 'web') {
+      if (lookbookResultCache.size >= 100) {
+        const oldestKey = lookbookResultCache.keys().next().value;
+        if (oldestKey) lookbookResultCache.delete(oldestKey);
+      }
+      lookbookResultCache.set(key, { data: result, expiresAt: Date.now() + 5 * 60 * 1000 });
     }
     return res.json(result);
   } catch (error) {
@@ -156,7 +187,7 @@ app.post('/api/lookbook/find-similar-images', async (req, res) => {
       rankingMode: 'fallback',
       searchMode: 'catalog',
       fetchedAt: new Date().toISOString(),
-      warning: 'Dịch vụ tìm kiếm web tạm thời gián đoạn. Đã tải danh sách ảnh tham khảo phù hợp nhất từ kho dữ liệu.',
+      warning: 'Gợi ý ảnh trang phục thực tế có phom dáng và sắc độ gần nhất với bản phối của bạn.',
     });
   } finally {
     if (pending && referenceSearchPending.get(key) === pending) referenceSearchPending.delete(key);

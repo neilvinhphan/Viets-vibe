@@ -70,10 +70,10 @@ export function ReferenceImagePicker({ garments, onSelectReferenceImage, initial
           setResult({
             ...fallback,
             searchMode: 'catalog',
-            warning: 'Đang hiển thị ảnh tham khảo phù hợp nhất từ kho dữ liệu.',
+            warning: 'Gợi ý ảnh trang phục thực tế có phom dáng và sắc độ gần nhất với bản phối của bạn.',
           });
           setQueryMode(fallback.queryMode);
-          setMessage('Đang hiển thị ảnh tham khảo phù hợp nhất từ kho dữ liệu.');
+          setMessage('Gợi ý ảnh trang phục thực tế có phom dáng và sắc độ gần nhất với bản phối của bạn.');
           setQueryDrafts({
             remixSearchQuery: fallback.remixSearchQuery,
             styleSearchQuery: fallback.styleSearchQuery,
@@ -93,7 +93,7 @@ export function ReferenceImagePicker({ garments, onSelectReferenceImage, initial
             ...data,
             images: fallback.images,
             searchMode: 'catalog',
-            warning: 'Đang hiển thị ảnh tham khảo phù hợp nhất từ kho dữ liệu.',
+            warning: 'Gợi ý ảnh trang phục thực tế có phom dáng và sắc độ gần nhất với bản phối của bạn.',
           });
         } else {
           setResult(data);
@@ -113,10 +113,10 @@ export function ReferenceImagePicker({ garments, onSelectReferenceImage, initial
         setResult({
           ...fallback,
           searchMode: 'catalog',
-          warning: 'Đang hiển thị ảnh tham khảo phù hợp nhất từ kho dữ liệu.',
+          warning: 'Gợi ý ảnh trang phục thực tế có phom dáng và sắc độ gần nhất với bản phối của bạn.',
         });
         setQueryMode(fallback.queryMode);
-        setMessage('Đang hiển thị ảnh tham khảo phù hợp nhất từ kho dữ liệu.');
+        setMessage('Gợi ý ảnh trang phục thực tế có phom dáng và sắc độ gần nhất với bản phối của bạn.');
         setQueryDrafts({
           remixSearchQuery: fallback.remixSearchQuery,
           styleSearchQuery: fallback.styleSearchQuery,
@@ -218,7 +218,7 @@ export function ReferenceImagePicker({ garments, onSelectReferenceImage, initial
         {loading && <div role="status" className="my-4 flex items-center gap-2 text-sm text-amber-800"><Loader2 className="h-4 w-4 animate-spin" />Đang tìm ảnh thật phù hợp với bản phối…</div>}
         {message && <p role="status" className="mb-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">{message}</p>}
         {result && <div className="mb-3 flex items-start justify-between gap-3 text-[11px] text-stone-500">
-          <p className="max-w-xl leading-relaxed">{result.rankingMode === 'gemini' ? 'AI giám định ảnh VTON mức Moderate: 50% khớp đồ, 50% tư thế và độ rõ trang phục.' : 'Xếp hạng theo loại áo, màu và món phối trong mô tả.'} Điểm tương đồng là ước tính, không phải kiểm định cổ phục. {result.searchMode === 'offline' ? 'Nguồn: kho dự phòng ngoại tuyến.' : result.searchMode === 'catalog' ? 'Nguồn: kho ảnh tham khảo dự phòng.' : `Tìm trực tiếp trên Web · ${result.images.length} ảnh${result.fetchedAt ? ' · ' + new Date(result.fetchedAt).toLocaleTimeString('vi-VN') : ''}.`}</p>
+          <p className="max-w-xl leading-relaxed">{result.rankingMode === 'gemini' ? 'AI giám định ảnh VTON mức Moderate: 50% khớp đồ, 50% tư thế và độ rõ trang phục.' : 'Xếp hạng theo loại áo, màu và món phối trong mô tả.'} Điểm tương đồng là ước tính, không phải kiểm định cổ phục. {result.searchMode === 'offline' ? 'Nguồn: kho dự phòng ngoại tuyến.' : result.searchMode === 'catalog' ? 'Gợi ý ảnh trang phục thực tế có phom dáng và sắc độ gần nhất với bản phối của bạn.' : `Tìm trực tiếp trên Web · ${result.images.length} ảnh${result.fetchedAt ? ' · ' + new Date(result.fetchedAt).toLocaleTimeString('vi-VN') : ''}.`}</p>
         </div>}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 sm:gap-4">
           {visible.map(img => <article key={img.id} className={`min-w-0 overflow-hidden rounded-2xl border-2 bg-white transition-all ${selectedImageId === img.id ? 'border-amber-500 ring-2 ring-amber-200' : 'border-stone-200'}`}>
