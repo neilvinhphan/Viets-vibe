@@ -71,31 +71,85 @@ interface CacheEntry<T> {
 const webSearchCache = new Map<string, CacheEntry<Awaited<ReturnType<typeof parseBingImageResults>>>>();
 const lookbookResultCache = new Map<string, CacheEntry<Awaited<ReturnType<typeof findSimilarImages>>>>();
 
-// Zero-key live Bing Images search; the scorer supplies catalog fallback when no candidates qualify.
+// Zero-key live Bing Images search with Vietnam region parameters and proxy relays for Vercel datacenter IPs
 export async function searchWebImagesLive(query: string) {
   const cleanQuery = query.replace(/chụp toàn thân rõ trang phục/gi, '').replace(/\s+/g, ' ').trim() || query;
   const cached = webSearchCache.get(cleanQuery);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.data;
   }
+
+  const bingSearchUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(cleanQuery)}&qft=+filterui:aspect-tall&cc=VN&mkt=vi-VN&setlang=vi&adlt=strict`;
+  const bingAsyncUrl = `https://www.bing.com/images/async?q=${encodeURIComponent(cleanQuery)}&first=1&count=35&qft=+filterui:aspect-tall&cc=VN&mkt=vi-VN&setlang=vi&adlt=strict&mmasync=1`;
+
+  const headers = {
+    'User-Agent': BROWSER_USER_AGENT,
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Cookie': '_EDGE_S=mkt=vi-VN&F=1; SRCHHPGUSR=SRCHLANG=vi&ADLT=STRICT',
+    'Referer': 'https://www.bing.com/',
+  };
+
+  let images: ReturnType<typeof parseBingImageResults> = [];
+
+  // Bước 1: Thử gọi trực tiếp bingAsyncUrl (và nếu rỗng thì gọi bingSearchUrl)
   try {
-    const url = `https://www.bing.com/images/search?q=${encodeURIComponent(cleanQuery)}&qft=+filterui:aspect-tall&setlang=vi&adlt=strict`;
-    const response = await fetch(url, {
-      headers: { 'User-Agent': BROWSER_USER_AGENT, Accept: 'text/html', 'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8' },
-      signal: AbortSignal.timeout(4500),
-    });
-    const html = await readSearchHtml(response);
-    const images = parseBingImageResults(html);
+    const res = await fetch(bingAsyncUrl, { headers, signal: AbortSignal.timeout(4500) });
+    if (res.ok) {
+      const html = await res.text();
+      images = parseBingImageResults(html);
+    }
+  } catch (err) {
+    console.warn(`Direct bingAsyncUrl failed for query "${cleanQuery}":`, err);
+  }
+
+  if (images.length === 0) {
+    try {
+      const res = await fetch(bingSearchUrl, { headers, signal: AbortSignal.timeout(4500) });
+      if (res.ok) {
+        const html = await res.text();
+        images = parseBingImageResults(html);
+      }
+    } catch (err) {
+      console.warn(`Direct bingSearchUrl failed for query "${cleanQuery}":`, err);
+    }
+  }
+
+  // Bước 2: Vượt tường lửa IP Datacenter trên Vercel qua các cổng relay công khai (timeout 5000ms mỗi cổng)
+  if (images.length === 0) {
+    const relayUrls = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(bingAsyncUrl)}`,
+      `https://corsproxy.io/?url=${encodeURIComponent(bingAsyncUrl)}`,
+    ];
+    for (const relayUrl of relayUrls) {
+      try {
+        const res = await fetch(relayUrl, {
+          headers: { 'User-Agent': BROWSER_USER_AGENT },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) {
+          const html = await res.text();
+          const parsed = parseBingImageResults(html);
+          if (parsed.length > 0) {
+            images = parsed;
+            break;
+          }
+        }
+      } catch (relayErr) {
+        console.warn(`Relay ${relayUrl.split('?')[0]} failed for query "${cleanQuery}":`, relayErr);
+      }
+    }
+  }
+
+  if (images.length > 0) {
     if (webSearchCache.size >= 100) {
       const oldestKey = webSearchCache.keys().next().value;
       if (oldestKey) webSearchCache.delete(oldestKey);
     }
     webSearchCache.set(cleanQuery, { data: images, expiresAt: Date.now() + 10 * 60 * 1000 });
-    return images;
-  } catch (error) {
-    console.warn(`searchWebImagesLive failed for query "${cleanQuery}":`, error);
-    return [];
   }
+
+  return images;
 }
 
 let activeImageDownloads = 0;

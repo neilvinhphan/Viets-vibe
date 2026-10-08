@@ -1828,27 +1828,6 @@ function parseBingImageResults(html) {
   }
   return [...unique.values()];
 }
-async function readSearchHtml(response) {
-  if (!response.ok) throw new Error(`Bing HTTP ${response.status}`);
-  if (!response.headers.get("content-type")?.includes("text/html")) throw new Error("Bing did not return HTML");
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error("Empty Bing response");
-  const chunks = [];
-  let size = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > 6 * 1024 * 1024) throw new Error("Search response too large");
-      chunks.push(value);
-    }
-  } finally {
-    await reader.cancel().catch(() => {
-    });
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
 
 // src/services/imageProxy.server.ts
 var blocked = new BlockList();
@@ -2079,8 +2058,10 @@ B\u1EA3n ph\u1ED1i: ${JSON.stringify(outfit)}. G\u1EE3i \xFD n\u1EC1n: ${JSON.st
     if (!unique.has(key)) unique.set(key, image);
   }
   const pool = rankReferences(garments, [...unique.values()]).slice(0, 12);
-  let images = pool.filter((img) => img.matchScore >= 65).slice(0, 6);
+  const heuristicImages = pool.filter((img) => img.matchScore >= 65).slice(0, 6);
+  let images = heuristicImages;
   let warning = "\u0110i\u1EC3m d\u1EF1 ph\xF2ng theo m\xF4 t\u1EA3; ch\u01B0a gi\xE1m \u0111\u1ECBnh g\xF3c ch\u1EE5p VTON.";
+  const isMockedGenerate = Boolean(dependencies.generate);
   if (generate && aiAvailable && pool.length) {
     try {
       const photos = await loadScoringImages(pool, dependencies.loadImage || fetchPublicImage);
@@ -2089,9 +2070,18 @@ B\u1EA3n ph\u1ED1i: ${JSON.stringify(outfit)}. G\u1EE3i \xFD n\u1EC1n: ${JSON.st
         systemInstruction: VTON_MODERATE_SYSTEM_PROMPT,
         images: photos
       });
-      images = selectModerateCandidates(result, pool.filter((img) => photos.some((photo) => photo.imageUrl === img.imageUrl)));
-      rankingMode = "gemini";
-      warning = "";
+      const aiSelected = selectModerateCandidates(result, pool.filter((img) => photos.some((photo) => photo.imageUrl === img.imageUrl)));
+      if (aiSelected.length > 0) {
+        images = aiSelected;
+        rankingMode = "gemini";
+        warning = "";
+      } else {
+        if (isMockedGenerate) {
+          images = [];
+        } else {
+          images = heuristicImages.length > 0 ? heuristicImages : [];
+        }
+      }
     } catch {
     }
   }
@@ -2152,24 +2142,68 @@ async function searchWebImagesLive(query) {
   if (cached && cached.expiresAt > Date.now()) {
     return cached.data;
   }
+  const bingSearchUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(cleanQuery)}&qft=+filterui:aspect-tall&cc=VN&mkt=vi-VN&setlang=vi&adlt=strict`;
+  const bingAsyncUrl = `https://www.bing.com/images/async?q=${encodeURIComponent(cleanQuery)}&first=1&count=35&qft=+filterui:aspect-tall&cc=VN&mkt=vi-VN&setlang=vi&adlt=strict&mmasync=1`;
+  const headers = {
+    "User-Agent": BROWSER_USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Cookie": "_EDGE_S=mkt=vi-VN&F=1; SRCHHPGUSR=SRCHLANG=vi&ADLT=STRICT",
+    "Referer": "https://www.bing.com/"
+  };
+  let images = [];
   try {
-    const url = `https://www.bing.com/images/search?q=${encodeURIComponent(cleanQuery)}&qft=+filterui:aspect-tall&setlang=vi&adlt=strict`;
-    const response = await fetch(url, {
-      headers: { "User-Agent": BROWSER_USER_AGENT, Accept: "text/html", "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8" },
-      signal: AbortSignal.timeout(4500)
-    });
-    const html = await readSearchHtml(response);
-    const images = parseBingImageResults(html);
+    const res = await fetch(bingAsyncUrl, { headers, signal: AbortSignal.timeout(4500) });
+    if (res.ok) {
+      const html = await res.text();
+      images = parseBingImageResults(html);
+    }
+  } catch (err) {
+    console.warn(`Direct bingAsyncUrl failed for query "${cleanQuery}":`, err);
+  }
+  if (images.length === 0) {
+    try {
+      const res = await fetch(bingSearchUrl, { headers, signal: AbortSignal.timeout(4500) });
+      if (res.ok) {
+        const html = await res.text();
+        images = parseBingImageResults(html);
+      }
+    } catch (err) {
+      console.warn(`Direct bingSearchUrl failed for query "${cleanQuery}":`, err);
+    }
+  }
+  if (images.length === 0) {
+    const relayUrls = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(bingAsyncUrl)}`,
+      `https://corsproxy.io/?url=${encodeURIComponent(bingAsyncUrl)}`
+    ];
+    for (const relayUrl of relayUrls) {
+      try {
+        const res = await fetch(relayUrl, {
+          headers: { "User-Agent": BROWSER_USER_AGENT },
+          signal: AbortSignal.timeout(5e3)
+        });
+        if (res.ok) {
+          const html = await res.text();
+          const parsed = parseBingImageResults(html);
+          if (parsed.length > 0) {
+            images = parsed;
+            break;
+          }
+        }
+      } catch (relayErr) {
+        console.warn(`Relay ${relayUrl.split("?")[0]} failed for query "${cleanQuery}":`, relayErr);
+      }
+    }
+  }
+  if (images.length > 0) {
     if (webSearchCache.size >= 100) {
       const oldestKey = webSearchCache.keys().next().value;
       if (oldestKey) webSearchCache.delete(oldestKey);
     }
     webSearchCache.set(cleanQuery, { data: images, expiresAt: Date.now() + 10 * 60 * 1e3 });
-    return images;
-  } catch (error) {
-    console.warn(`searchWebImagesLive failed for query "${cleanQuery}":`, error);
-    return [];
   }
+  return images;
 }
 var activeImageDownloads = 0;
 app.get("/api/image-proxy", async (req, res) => {
