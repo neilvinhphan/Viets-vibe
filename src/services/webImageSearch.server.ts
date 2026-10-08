@@ -31,13 +31,30 @@ export function parseBingImageResults(html: string): ReferenceOutfitImage[] {
     const encoded = anchor[0].match(/\sm\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
     if (!encoded) continue;
     try {
-      const data = JSON.parse(decodeHtml(encoded[1] ?? encoded[2]));
-      const originalImageUrl = webUrl(data.murl);
-      const sourceUrl = webUrl(data.purl);
+      const rawVal = encoded[1] ?? encoded[2];
+      const unescapedVal = rawVal.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+      let data: any = null;
+      try {
+        data = JSON.parse(decodeHtml(unescapedVal));
+      } catch {
+        try {
+          data = JSON.parse(unescapedVal);
+        } catch {
+          // If JSON parse fails, attempt regex extraction on the unescaped string
+        }
+      }
+
+      const murlMatch = !data?.murl ? unescapedVal.match(/"murl"\s*:\s*"([^"]+)"/i) : null;
+      const turlMatch = !data?.turl ? unescapedVal.match(/"turl"\s*:\s*"([^"]+)"/i) : null;
+      const purlMatch = !data?.purl ? unescapedVal.match(/"purl"\s*:\s*"([^"]+)"/i) : null;
+
+      const originalImageUrl = webUrl(data?.murl || murlMatch?.[1]);
+      const sourceUrl = webUrl(data?.purl || purlMatch?.[1]);
+      const thumbnail = webUrl(data?.turl || turlMatch?.[1]);
+
       if (!originalImageUrl || !sourceUrl || unique.has(originalImageUrl)) continue;
-      const title = decodeHtml(String(data.t || data.desc || new URL(sourceUrl).hostname)).replace(/<[^>]*>|[\uE000-\uF8FF]/g, '').trim().slice(0, 240);
-      const metadata = `${title} ${typeof data.desc === 'string' ? data.desc : ''}`;
-      const thumbnail = webUrl(data.turl);
+      const title = decodeHtml(String(data?.t || data?.desc || new URL(sourceUrl).hostname)).replace(/<[^>]*>|[\uE000-\uF8FF]/g, '').trim().slice(0, 240);
+      const metadata = `${title} ${typeof data?.desc === 'string' ? data.desc : ''}`;
       unique.set(originalImageUrl, {
         id: `web-${createHash('sha256').update(originalImageUrl).digest('hex').slice(0, 20)}`,
         title, originalImageUrl, imageUrl: `/api/image-proxy?url=${encodeURIComponent(originalImageUrl)}`,
@@ -49,6 +66,30 @@ export function parseBingImageResults(html: string): ReferenceOutfitImage[] {
       if (unique.size >= 24) break;
     } catch { /* Skip malformed entries without discarding the rest of the page. */ }
   }
+
+  // Fallback: If anchors didn't produce results, search directly for unescaped murl/turl in html
+  if (unique.size === 0) {
+    const unescapedHtml = html.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+    for (const match of unescapedHtml.matchAll(/"murl"\s*:\s*"([^"]+)"/gi)) {
+      const originalImageUrl = webUrl(match[1]);
+      if (!originalImageUrl || unique.has(originalImageUrl)) continue;
+      unique.set(originalImageUrl, {
+        id: `web-${createHash('sha256').update(originalImageUrl).digest('hex').slice(0, 20)}`,
+        title: 'Ảnh trang phục thực tế',
+        originalImageUrl,
+        imageUrl: `/api/image-proxy?url=${encodeURIComponent(originalImageUrl)}`,
+        sourceName: 'Bing Images',
+        sourceUrl: originalImageUrl,
+        category: 'traditional',
+        garmentId: '',
+        tags: [],
+        matchScore: 0,
+        matchReason: '',
+      });
+      if (unique.size >= 24) break;
+    }
+  }
+
   return [...unique.values()];
 }
 

@@ -7,7 +7,8 @@ import { GARMENTS, OUTFIT_PRESETS } from './src/data/garments';
 import { validateOutfit } from './src/services/culturalValidationEngine';
 import { POSTGRESQL_SCHEMA_SQL, SCHEMA_TABLES } from './src/data/postgresSchema';
 import { findSimilarImages } from './src/services/findSimilarImages.server';
-import { fallbackQueries, mainGarment } from './src/services/referenceImageMatching';
+import { fallbackQueries, mainGarment, rankReferences } from './src/services/referenceImageMatching';
+import { REFERENCE_OUTFITS_CATALOG } from './src/data/referenceOutfits';
 import { BROWSER_USER_AGENT, parseBingImageResults, readSearchHtml } from './src/services/webImageSearch.server';
 import { fetchPublicImage, validateImageUrl } from './src/services/imageProxy.server';
 export { buildHybridSearchQueries } from './src/services/referenceImageMatching';
@@ -64,17 +65,19 @@ app.get('/api/garments', (req, res) => {
 
 // Zero-key live Bing Images search; the scorer supplies catalog fallback when no candidates qualify.
 export async function searchWebImagesLive(query: string) {
-  const url = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&qft=+filterui:aspect-tall&setlang=vi&adlt=strict`;
-  const response = await fetch(url, {
-    headers: { 'User-Agent': BROWSER_USER_AGENT, Accept: 'text/html', 'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8' },
-    signal: AbortSignal.timeout(10000),
-  });
-  const html = await readSearchHtml(response);
-  const images = parseBingImageResults(html);
-  if (!images.length && !/no (?:image )?results|couldn.t find any|không (?:có|tìm thấy) kết quả/i.test(html)) {
-    throw new Error('Bing returned a challenge or an unsupported search page');
+  try {
+    const url = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&qft=+filterui:aspect-tall&setlang=vi&adlt=strict`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': BROWSER_USER_AGENT, Accept: 'text/html', 'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8' },
+      signal: AbortSignal.timeout(10000),
+    });
+    const html = await readSearchHtml(response);
+    const images = parseBingImageResults(html);
+    return images;
+  } catch (error) {
+    console.warn(`searchWebImagesLive failed for query "${query}":`, error);
+    return [];
   }
-  return images;
 }
 
 let activeImageDownloads = 0;
@@ -128,9 +131,33 @@ app.post('/api/lookbook/find-similar-images', async (req, res) => {
       referenceSearchPending.set(key, pending);
     }
     const result = await pending;
+    // BẮT BUỘC: Nếu nguồn tìm kiếm web trả về rỗng, endpoint BẮT BUỘC trả về danh sách ảnh phù hợp nhất từ kho referenceOutfits.ts (HTTP 200)
+    if (!result.images || result.images.length === 0) {
+      const fallbackImages = rankReferences(garments, REFERENCE_OUTFITS_CATALOG).slice(0, 6);
+      return res.json({
+        ...result,
+        images: fallbackImages,
+        candidates: fallbackImages.map(({ imageUrl, matchScore, matchReason }) => ({ imageUrl, matchScore, matchReason })),
+        searchMode: 'catalog',
+        rankingMode: 'fallback',
+        warning: 'Không tìm thấy ảnh trên Web. Đã tự động hiển thị ảnh phù hợp nhất từ kho tham khảo cổ phục.',
+      });
+    }
     return res.json(result);
-  } catch {
-    return res.status(503).json({ error: 'Chưa tìm được ảnh trên Web. Bing có thể đang giới hạn truy cập hoặc kết nối bị gián đoạn. Hãy thử lại.' });
+  } catch (error) {
+    console.warn('findSimilarImages failed or blocked, returning top referenceOutfits catalog (HTTP 200):', error);
+    const queries = customQueries || fallbackQueries(garments);
+    const fallbackImages = rankReferences(garments, REFERENCE_OUTFITS_CATALOG).slice(0, 6);
+    return res.json({
+      ...queries,
+      images: fallbackImages,
+      candidates: fallbackImages.map(({ imageUrl, matchScore, matchReason }) => ({ imageUrl, matchScore, matchReason })),
+      queryMode: customQueries ? 'custom' : 'fallback',
+      rankingMode: 'fallback',
+      searchMode: 'catalog',
+      fetchedAt: new Date().toISOString(),
+      warning: 'Dịch vụ tìm kiếm web tạm thời gián đoạn. Đã tải danh sách ảnh tham khảo phù hợp nhất từ kho dữ liệu.',
+    });
   } finally {
     if (pending && referenceSearchPending.get(key) === pending) referenceSearchPending.delete(key);
   }
@@ -416,7 +443,11 @@ Respond in JSON matching the exact schema requested.`;
 // ---------------------------------------------------------
 
 // Ensure public/models directory exists on startup
-fs.mkdirSync(path.join(process.cwd(), 'public', 'models'), { recursive: true });
+try {
+  fs.mkdirSync(path.join(process.cwd(), 'public', 'models'), { recursive: true });
+} catch {
+  // Read-only filesystem in serverless environments
+}
 
 // Serve viet_phuc_gallery.glb safely without falling into Vite HTML catch-all
 app.get('/models/viet_phuc_gallery.glb', (req, res) => {
@@ -486,4 +517,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;

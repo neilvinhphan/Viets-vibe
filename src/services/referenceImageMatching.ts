@@ -20,10 +20,21 @@ export function buildHybridSearchQueries(garments: Garment[]) {
   const main = mainGarment(garments);
   const name = main ? GARMENT_FAMILIES[garmentFamily(main.id)] || main.name : 'Việt phục';
   const color = main ? tagsIn(main.colorName)[0] || main.colorName.split('(')[0].trim() : '';
-  const modern = garments.filter(g => g.dynasty === 'modern' && g.id !== main?.id).map(g => g.name).join(' ');
+  const modernGarments = garments.filter(g => g.dynasty === 'modern' && g.id !== main?.id);
+  const hasModern = modernGarments.length > 0;
+
+  let remixBase: string;
+  if (hasModern) {
+    const modern = modernGarments.map(g => g.name).join(' ');
+    remixBase = `${name} ${color} ${modern} phối đồ`.trim();
+  } else {
+    // Nếu người dùng đang mặc toàn bộ đồ truyền thống, câu truy vấn phản ánh đúng trang phục truyền thống đang mặc (ngắn gọn 5 - 8 từ, ví dụ: "Áo Nhật Bình đỏ cổ phục Việt Nam")
+    remixBase = `${name} ${color} cổ phục Việt Nam`.trim();
+  }
+
   const queries = {
-    remixSearchQuery: `${name} ${color} ${modern || 'quần jeans'} phối đồ`.trim().slice(0, 220),
-    styleSearchQuery: `${name} cách tân streetstyle Việt phục`,
+    remixSearchQuery: remixBase.slice(0, 220),
+    styleSearchQuery: hasModern ? `${name} cách tân streetstyle Việt phục` : `${name} ${color} Việt phục truyền thống`.trim(),
     traditionalSearchQuery: `${name} ${color} cổ phục Việt Nam`.trim(),
   };
   return Object.fromEntries(Object.entries(queries).map(([key, query]) => [key, `${query.slice(0, 219 - vtonModifiers.length).trim()} ${vtonModifiers}`])) as typeof queries;

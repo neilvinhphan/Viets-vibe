@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GARMENTS } from '../data/garments';
 import { REFERENCE_OUTFITS_CATALOG } from '../data/referenceOutfits';
@@ -17,6 +17,12 @@ test('queries preserve streetstyle and use moderate modifier within length limit
   }
   assert.match(queries.remixSearchQuery, /Ngũ Thân xanh lam.*Jeans/);
   assert.match(queries.styleSearchQuery, /streetstyle/);
+});
+test('traditional outfit does not auto-append jeans or modern keywords', () => {
+  const tradOutfit = GARMENTS.filter(g => ['ao_nhat_binh_cong_chua', 'quan_bach_quy'].includes(g.id));
+  const tradQueries = buildHybridSearchQueries(tradOutfit);
+  assert.doesNotMatch(tradQueries.remixSearchQuery, /jeans|sneaker|chân váy|streetstyle/i);
+  assert.match(tradQueries.remixSearchQuery, /Áo Nhật Bình đỏ cổ phục Việt Nam/);
 });
 test('inclusive 65 threshold, descending top six, safe URLs and no old score caps', () => {
   const scores = [100, 99, 90, 88, 80, 65, 64.9, 59, 101, NaN];

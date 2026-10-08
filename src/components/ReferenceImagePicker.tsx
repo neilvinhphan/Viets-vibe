@@ -64,24 +64,64 @@ export function ReferenceImagePicker({ garments, onSelectReferenceImage, initial
       body: JSON.stringify({ garmentIds: outfitKey.split('|'), queries: submittedQueries }), signal: controller.signal,
     }).then(async response => {
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || 'Dịch vụ tìm ảnh trên Web tạm thời không khả dụng.');
+        console.warn('Fetch /api/lookbook/find-similar-images non-ok response status:', response.status);
+        if (active) {
+          const fallback = localReferenceResult(garments);
+          setResult({
+            ...fallback,
+            searchMode: 'catalog',
+            warning: 'Đang hiển thị ảnh tham khảo phù hợp nhất từ kho dữ liệu.',
+          });
+          setQueryMode(fallback.queryMode);
+          setMessage('Đang hiển thị ảnh tham khảo phù hợp nhất từ kho dữ liệu.');
+          setQueryDrafts({
+            remixSearchQuery: fallback.remixSearchQuery,
+            styleSearchQuery: fallback.styleSearchQuery,
+            traditionalSearchQuery: fallback.traditionalSearchQuery,
+          });
+        }
+        return;
       }
       const data: SimilarImagesResult = await response.json();
-      if (!Array.isArray(data.images) || typeof data.remixSearchQuery !== 'string' || typeof data.traditionalSearchQuery !== 'string') throw new Error('Invalid response');
+      if (!Array.isArray(data.images) || typeof data.remixSearchQuery !== 'string' || typeof data.traditionalSearchQuery !== 'string') {
+        throw new Error('Invalid response');
+      }
       if (active) {
-        setResult(data); setQueryMode(data.queryMode); setMessage(data.warning || '');
-        setQueryDrafts({ remixSearchQuery: data.remixSearchQuery, styleSearchQuery: data.styleSearchQuery, traditionalSearchQuery: data.traditionalSearchQuery });
+        if (!data.images.length) {
+          const fallback = localReferenceResult(garments);
+          setResult({
+            ...data,
+            images: fallback.images,
+            searchMode: 'catalog',
+            warning: 'Đang hiển thị ảnh tham khảo phù hợp nhất từ kho dữ liệu.',
+          });
+        } else {
+          setResult(data);
+        }
+        setQueryMode(data.queryMode);
+        setMessage(data.warning || '');
+        setQueryDrafts({
+          remixSearchQuery: data.remixSearchQuery,
+          styleSearchQuery: data.styleSearchQuery,
+          traditionalSearchQuery: data.traditionalSearchQuery,
+        });
       }
     }).catch(error => {
       if (active) {
-        if (navigator.onLine === false) {
-          setResult(localReferenceResult(garments));
-          setMessage('Thiết bị đang ngoại tuyến. Tạm hiển thị kho ảnh dự phòng.');
-        } else {
-          setResult(null);
-          setMessage(error.name === 'AbortError' ? 'Tìm ảnh mất quá nhiều thời gian. Hãy bấm Tìm lại trên Web.' : error.message || 'Chưa kết nối được dịch vụ tìm ảnh. Hãy thử lại trên Web.');
-        }
+        console.warn('Error fetching /api/lookbook/find-similar-images, falling back to local catalog:', error);
+        const fallback = localReferenceResult(garments);
+        setResult({
+          ...fallback,
+          searchMode: 'catalog',
+          warning: 'Đang hiển thị ảnh tham khảo phù hợp nhất từ kho dữ liệu.',
+        });
+        setQueryMode(fallback.queryMode);
+        setMessage('Đang hiển thị ảnh tham khảo phù hợp nhất từ kho dữ liệu.');
+        setQueryDrafts({
+          remixSearchQuery: fallback.remixSearchQuery,
+          styleSearchQuery: fallback.styleSearchQuery,
+          traditionalSearchQuery: fallback.traditionalSearchQuery,
+        });
       }
     }).finally(() => { window.clearTimeout(timer); if (active) setLoading(false); });
     return () => { active = false; window.clearTimeout(timer); controller.abort(); };
