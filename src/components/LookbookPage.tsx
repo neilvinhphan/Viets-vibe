@@ -4,6 +4,8 @@ import type { EventType, Garment, ValidationMode, WeatherType } from '../types';
 import type { HistoricalScene } from '../data/historicalScenes';
 import { Avatar2D } from './Avatar2D';
 import { LookbookExportButton } from './LookbookExportButton';
+import { LookbookThumbnail } from './LookbookThumbnail';
+import { createLookbookPreview } from '../utils/exportLookbookPng';
 import { EVENTS_CONFIG, WEATHER_CONFIG } from './SceneSelector';
 import { getOutfitEra, ERA_LIGHTING_THEMES } from '../utils/eraLighting';
 import { createLookbookSnapshot, getLookbookHeading } from '../utils/lookbookSnapshot';
@@ -51,6 +53,9 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [announcement, setAnnouncement] = useState('');
+  const [saving, setSaving] = useState(false);
+  const captureRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => captureRequest.current?.abort(), []);
   const pageRef = useRef<HTMLElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -110,6 +115,9 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
   }, [isPopupOpen]);
 
   const dismissPopup = () => {
+    captureRequest.current?.abort();
+    captureRequest.current = null;
+    setSaving(false);
     setError('');
     setPopup(popup === 'rename' || popup === 'delete' ? 'collection' : null);
   };
@@ -124,22 +132,34 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
     setPopup(next);
   };
 
-  const capture = (event: React.FormEvent<HTMLFormElement>) => {
+  const capture = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (captureRequest.current) return;
+    const controller = new AbortController();
+    captureRequest.current = controller;
+    setSaving(true);
     try {
       const next = createLookbookSnapshot({
         title: name, garments: equippedGarments, scene: activeScene, sceneOpacity,
         gender, skinTone, eventType: activeEvent, weatherType: activeWeather, validationMode,
       });
+      const svg = pageRef.current?.querySelector('.lookbook-shell #avatar-mannequin')?.closest('svg');
+      if (!svg) throw new Error('Nhân vật chưa sẵn sàng. Hãy thử lại.');
+      next.previewImage = await createLookbookPreview(svg, controller.signal);
+      controller.signal.throwIfAborted();
       onSaveSnapshot(next);
-      setPopup(null);
-      setAnnouncement(`Đã lưu bản phối ${next.title}.`);
+      setPopup('collection');
+      setAnnouncement('Đã lưu bản phối ' + next.title + '.');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Chưa chụp được bản phối.');
-      nameRef.current?.focus();
+      if (!controller.signal.aborted) {
+        setError(cause instanceof Error ? cause.message : 'Chưa lưu được bản phối.');
+        nameRef.current?.focus();
+      }
+    } finally {
+      if (captureRequest.current === controller) captureRequest.current = null;
+      if (!controller.signal.aborted) setSaving(false);
     }
   };
-
 
   const manage = (mode: 'rename' | 'delete', entry: LookbookEntry, event: React.MouseEvent<HTMLButtonElement>) => {
     popupTrigger.current = event.currentTarget;
@@ -254,7 +274,7 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
               </button>
             ) : (
               <button className="lookbook-outline lookbook-secondary-action" onClick={onOpenOutfitCard}>
-                <Share2 size={15} aria-hidden="true" /> Thẻ & so sánh
+                <Share2 size={15} aria-hidden="true" /> Ảnh mẫu & so sánh
               </button>
             )}
             <button className="lookbook-outline lookbook-more" onClick={event => openPopup('actions', event)}>
@@ -273,7 +293,7 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
         {error && !popup && <p className="lookbook-error" role="alert">{error}</p>}
         <div className="lookbook-sr-only" role="status">{announcement}</div>
       </div>
-      <dialog ref={dialogRef} className="lookbook-dialog" aria-labelledby="lookbook-popup-title"
+      <dialog ref={dialogRef} className={'lookbook-dialog' + (popup === 'collection' ? ' lookbook-collection-dialog' : '')} aria-labelledby="lookbook-popup-title"
         onCancel={event => { event.preventDefault(); dismissPopup(); }}
         onClick={event => {
           if (event.target !== event.currentTarget) return;
@@ -288,14 +308,14 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
           <form onSubmit={popup === 'rename' ? rename : capture}>
             <label className="lookbook-field" htmlFor="lookbook-name">Tên bản phối</label>
             <input ref={nameRef} className="lookbook-name-input" id="lookbook-name" value={name}
-              onChange={event => { setName(event.target.value); setError(''); }} maxLength={60} required
+              onChange={event => { setName(event.target.value); setError(''); }} maxLength={60} required disabled={saving}
               aria-invalid={Boolean(error)} aria-describedby={error ? 'lookbook-name-error' : undefined} />
             {error && <p className="lookbook-error" id="lookbook-name-error" role="alert">{error}</p>}
             {popup === 'capture' && <p className="lookbook-empty">Giữ lại trang phục, nhân vật và bối cảnh đang phối. Bộ sưu tập được lưu trên trình duyệt này.</p>}
             {storageNotice && <p className="lookbook-error" role="alert">{storageNotice}</p>}
             <div className="lookbook-form-actions">
-              <button type="button" className="lookbook-outline" onClick={() => { setError(''); setPopup(popup === 'rename' ? 'collection' : null); }}>Hủy</button>
-              <button type="submit" className="lookbook-primary">{popup === 'rename' ? 'Lưu tên mới' : 'Lưu bản phối'}</button>
+              <button type="button" className="lookbook-outline" onClick={() => { if (popup === 'rename') { setError(''); setPopup('collection'); } else dismissPopup(); }}>Hủy</button>
+              <button type="submit" className="lookbook-primary" disabled={saving} aria-busy={saving}>{saving ? 'Đang lưu ảnh…' : popup === 'rename' ? 'Lưu tên mới' : 'Lưu bản phối'}</button>
             </div>
           </form>
         ) : popup === 'delete' ? (
@@ -323,7 +343,7 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
             {selected ? (
               <button onClick={() => { onSelectSnapshot(null); setPopup(null); setAnnouncement('Đang xem bản phối hiện tại.'); }}><Palette size={20} aria-hidden="true" /><span>Xem bản đang phối</span><ChevronRight size={17} aria-hidden="true" /></button>
             ) : (
-              <button onClick={() => { setPopup(null); onOpenOutfitCard(); }}><Share2 size={20} aria-hidden="true" /><span>Thẻ & so sánh</span><ChevronRight size={17} aria-hidden="true" /></button>
+              <button onClick={() => { setPopup(null); onOpenOutfitCard(); }}><Share2 size={20} aria-hidden="true" /><span>Ảnh mẫu & so sánh</span><ChevronRight size={17} aria-hidden="true" /></button>
             )}
             <button onClick={onBackToStudio}><ChevronLeft size={20} aria-hidden="true" /><span>Về Studio</span><ChevronRight size={17} aria-hidden="true" /></button>
           </div>
@@ -347,7 +367,7 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
               {selected ? 'Áp dụng vào Studio' : 'Chỉnh trong Studio'}
             </button>
           </>
-        ) : (
+        ) : popup === 'collection' ? (
           <>
             <div className="lookbook-filter" aria-label="Lọc bộ sưu tập">
               <button className={!favoriteOnly ? 'active' : ''} aria-pressed={!favoriteOnly} onClick={() => setFavoriteOnly(false)}>Tất cả</button>
@@ -357,11 +377,13 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
             {error && <p className="lookbook-error" role="alert">{error}</p>}
             <div className="lookbook-collection-list">
               <button className={`lookbook-draft ${!selected ? 'lookbook-selected' : ''}`} onClick={() => { onSelectSnapshot(null); setPopup(null); }}>
-                <Palette size={24} aria-hidden="true" /><span><strong>Bản đang phối</strong><small>{equippedGarments.length} món · {activeScene.name}</small></span>
+                <LookbookThumbnail key={JSON.stringify([equippedGarments, gender, skinTone])} outfit={{ garments: equippedGarments, gender, skinTone }} title="Bản đang phối" />
+                <span className="lookbook-entry-caption"><strong>Bản đang phối</strong><small>{equippedGarments.length} món · {activeScene.name}</small><small>Chưa lưu</small></span>
               </button>
               {visibleEntries.map(entry => <article className={`lookbook-entry ${entry.id === selectedId ? 'lookbook-selected' : ''}`} key={entry.id}>
                 <button className="lookbook-entry-open" onClick={() => { onSelectSnapshot(entry.id); setPopup(null); }}>
-                  <BookOpen size={22} aria-hidden="true" /><span><strong>{entry.title}</strong><small>{entry.garments.length} món · {entry.scene.name}</small></span>
+                  <LookbookThumbnail outfit={entry} title={entry.title} />
+                  <span className="lookbook-entry-caption"><strong>{entry.title}</strong><small>{entry.garments.length} món · {entry.scene.name}</small><small>{new Date(entry.createdAt).toLocaleDateString('vi-VN')}</small></span>
                 </button>
                 <div className="lookbook-entry-tools">
                   <button className={`lookbook-icon ${entry.favorite ? 'lookbook-loved' : ''}`} aria-label={`${entry.favorite ? 'Bỏ yêu thích' : 'Yêu thích'} ${entry.title}`}
@@ -373,7 +395,7 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
               {!visibleEntries.length && <p className="lookbook-empty">{favoriteOnly ? 'Chưa có bản phối yêu thích.' : 'Chưa có bản đã lưu. Đặt tên và lưu bản phối để bắt đầu bộ sưu tập.'}</p>}
             </div>
           </>
-        )}
+        ) : null}
       </dialog>
     </main>
   );

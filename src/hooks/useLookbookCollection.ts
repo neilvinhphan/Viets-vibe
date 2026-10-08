@@ -6,7 +6,7 @@ import type { LookbookEntry } from "../utils/lookbookStorage";
 import {
   LOOKBOOK_STORAGE_KEY,
   loadLookbookCollection,
-  writeLookbookCollection,
+  commitLookbookCollection,
   validateLookbookTitle,
 } from "../utils/lookbookStorage";
 
@@ -50,27 +50,7 @@ export function useLookbookCollection() {
   const commit = (
     change: (current: LookbookEntry[]) => LookbookEntry[],
   ) => {
-    const latest = loadLookbookCollection();
-
-    if (latest.blocked) {
-      throw new Error(latest.notice);
-    }
-
-    if (latest.notice) {
-      throw new Error(
-        "Bộ sưu tập có dữ liệu không hợp lệ. Chưa ghi thay đổi để giữ nguyên dữ liệu hiện có.",
-      );
-    }
-
-    const next = change(latest.snapshots);
-
-    writeLookbookCollection(next);
-
-    setCollection({
-      snapshots: next,
-      notice: "",
-      blocked: false,
-    });
+    setCollection(commitLookbookCollection(change));
   };
 
   const saveSnapshot = (snapshot: LookbookSnapshot) => {

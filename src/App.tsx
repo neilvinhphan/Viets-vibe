@@ -26,6 +26,7 @@ import { GeminiImageAnalyzerModal } from "./components/GeminiImageAnalyzerModal"
 import { SceneBackground } from "./components/SceneBackground";
 import { SceneSelector } from "./components/SceneSelector";
 import { LookbookAndCompareModal } from "./components/LookbookAndCompareModal";
+import type { ReferenceOutfitImage } from "./data/referenceOutfits";
 import { LookbookPage } from "./components/LookbookPage";
 import type { LookbookSnapshot } from "./utils/lookbookSnapshot";
 import { useLookbookCollection } from "./hooks/useLookbookCollection";
@@ -61,6 +62,12 @@ export default function App() {
   const [equippedGarmentIds, setEquippedGarmentIds] = useState<string[]>(
     defaultPreset.garmentIds,
   );
+  const referenceOutfitKey = [...equippedGarmentIds].sort().join('|');
+  const [referenceSelection, setReferenceSelection] = useState<{
+    outfitKey: string;
+    image: ReferenceOutfitImage;
+  } | null>(null);
+  useEffect(() => { setReferenceSelection(null); }, [referenceOutfitKey]);
 
   // Scene, Event, Weather & Validation Mode states
   const [activeScene, setActiveScene] = useState<HistoricalScene>(
@@ -96,6 +103,11 @@ export default function App() {
   // Single exclusive active state for all popovers, menus, and modals
   // Possible values: 'remix' | 'tools' | 'character_customizer' | 'wardrobe' | 'validation' | 'lookbook' | 'gemini' | 'historical_info' | null
   const [activePopover, setActivePopover] = useState<string | null>(null);
+  const [lookbookTab, setLookbookTab] = useState<'compare' | 'reference'>('reference');
+  const openLookbookModal = (tab: 'compare' | 'reference' = 'reference') => {
+    setLookbookTab(tab);
+    setActivePopover('lookbook');
+  };
   const switchView = (view: "studio_2d" | "gallery_3d" | "lookbook") => {
     setActivePopover(null);
     setIsZenMode(false);
@@ -654,7 +666,7 @@ export default function App() {
               </button>
             </div>
           </div>
-          <TryOnWebsiteLink onOpen={() => setActivePopover(null)} />
+          {activeView === "lookbook" && <TryOnWebsiteLink onOpen={() => setActivePopover(null)} />}
 
 {/* Center: Validation Status Pill */}
 
@@ -915,7 +927,7 @@ export default function App() {
                   </button>
                   <button
                     onClick={() => {
-                      setActivePopover("lookbook");
+                      openLookbookModal("compare");
                     }}
                     className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs text-stone-700 hover:bg-stone-100 transition-colors"
                   >
@@ -960,17 +972,17 @@ export default function App() {
               <span className="hidden sm:inline">Chiêm Ngưỡng</span>
             </button>
 
-            {/* Lookbook 9:16 & Share Button */}
+            {/* Reference images and outfit comparison */}
             <button
               id="nav-lookbook-share-btn"
               onClick={() => {
-                setActivePopover("lookbook");
+                openLookbookModal();
               }}
               className="w-8 h-8 flex items-center justify-center p-0 md:w-auto md:h-auto md:px-3.5 md:py-1.5 rounded-full bg-stone-900 hover:bg-stone-800 text-stone-50 text-xs font-semibold transition-all shadow-xs hover:scale-105 active:scale-95 shrink-0"
-              title="Xuất Thẻ Lookbook 9:16 & So Sánh Phương Án"
+              title="Tìm ảnh mẫu & so sánh phương án"
             >
               <Share2 className="w-3.5 h-3.5 text-amber-300" />
-              <span className="hidden md:inline md:ml-1.5">Thẻ Lookbook</span>
+              <span className="hidden md:inline md:ml-1.5">Ảnh mẫu & A/B</span>
             </button>
           </div>
         </header>
@@ -1005,7 +1017,7 @@ export default function App() {
             onDeleteSnapshot={deleteSnapshot}
             onApplySnapshot={handleApplyLookbookSnapshot}
             onBackToStudio={() => switchView("studio_2d")}
-            onOpenOutfitCard={() => setActivePopover("lookbook")}
+            onOpenOutfitCard={() => openLookbookModal()}
           />
         ) : activeView === "gallery_3d" ? (
           <main className="flex-1 min-h-0 relative overflow-hidden z-10 w-full bg-[#120c09]">
@@ -1260,9 +1272,10 @@ export default function App() {
           />
         )}
 
-        {/* Lookbook 9:16 & Split A/B Comparison Modal */}
+        {/* Reference images and split A/B comparison modal */}
         <LookbookAndCompareModal
           isOpen={isLookbookModalOpen}
+          initialTab={lookbookTab}
           onClose={() => setActivePopover(null)}
           equippedGarments={equippedGarments}
           validationResult={validationResult}
@@ -1272,6 +1285,8 @@ export default function App() {
           savedVariantA={savedVariantA}
           onSaveCurrentAsVariantA={handleSaveCurrentAsVariantA}
           onApplyVariantA={handleApplyVariantA}
+          selectedReferenceImage={referenceSelection?.outfitKey === referenceOutfitKey ? referenceSelection.image : null}
+          onSelectReferenceImage={(image) => setReferenceSelection({ outfitKey: referenceOutfitKey, image })}
         />
 
         {/* Gemini AI Image Understanding Modal */}

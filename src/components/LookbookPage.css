@@ -1195,3 +1195,32 @@
     transform: none;
   }
 }
+/* Image cards for saved outfits. */
+.lookbook-collection-dialog { width: min(920px, calc(100% - 32px)); }
+.lookbook-collection-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.lookbook-collection-list .lookbook-entry {
+  display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden;
+}
+.lookbook-collection-list .lookbook-draft { display: block; padding: 0; overflow: hidden; align-self: start; }
+.lookbook-entry-open { display: block; padding: 0; height: 100%; }
+.lookbook-thumbnail {
+  display: block; position: relative; width: 100%; aspect-ratio: 340 / 520;
+  overflow: hidden; background: radial-gradient(ellipse at 50% 40%, #fffdf8, #eae0ce);
+}
+.lookbook-thumbnail img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.lookbook-thumbnail-avatar { display: block; height: 100%; width: 100%; transform: none; --avatar-height: 100%; }
+.lookbook-thumbnail-avatar #avatar-container { height: 100%; }
+.lookbook-collection-list .lookbook-entry-caption { display: block; padding: 14px 14px 10px; }
+.lookbook-entry-tools { width: 100%; justify-content: flex-end; padding: 0 12px 12px; margin-top: auto; }
+.lookbook-collection-list .lookbook-empty { grid-column: 1 / -1; }
+@media (max-width: 720px) {
+  .lookbook-collection-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+}
+@media (max-width: 380px) {
+  .lookbook-collection-list { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 720px) {
+  .lookbook-collection-list .lookbook-entry-tools { gap: 4px; padding: 0 4px 12px; justify-content: center; }
+  .lookbook-collection-list .lookbook-entry-tools .lookbook-icon { width: 40px; min-width: 40px; height: 44px; }
+}

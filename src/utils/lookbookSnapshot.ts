@@ -12,6 +12,7 @@ export interface LookbookSnapshot {
   id: string;
   title: string;
   createdAt: number;
+  previewImage?: string;
   garments: Garment[];
 
   scene: Pick<HistoricalScene, "id" | "name" | "era">;

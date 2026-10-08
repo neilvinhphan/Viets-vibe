@@ -299,24 +299,7 @@ export async function exportLookbookPng(
     colors: [...options.colors],
   };
 
-  // Giữ lại nhân vật ngay lúc bấm xuất.
-  const clone = options.svg.cloneNode(true) as SVGSVGElement;
-
-  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-  clone.setAttribute('width', '680');
-  clone.setAttribute('height', '1040');
-  clone.removeAttribute('class');
-  clone.removeAttribute('style');
-
-  clone.querySelectorAll('[class]').forEach(element => {
-    element.removeAttribute('class');
-  });
-
-  if (clone.querySelector('image, foreignObject, script')) {
-    throw new Error('Chưa xuất được hình nhân vật này.');
-  }
-
-  const markup = new XMLSerializer().serializeToString(clone);
+  const markup = serializeAvatarSvg(options.svg);
 
   const svgUrl = URL.createObjectURL(
     new Blob([markup], {
@@ -367,4 +350,44 @@ export async function exportLookbookPng(
   } finally {
     URL.revokeObjectURL(svgUrl);
   }
+}
+export function serializeAvatarSvg(svg: SVGSVGElement): string {
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  clone.setAttribute('width', '680');
+  clone.setAttribute('height', '1040');
+  clone.removeAttribute('class');
+  clone.removeAttribute('style');
+
+  clone.querySelectorAll('[class]').forEach(element => {
+    element.removeAttribute('class');
+  });
+
+  if (clone.querySelector('image, foreignObject, script')) {
+    throw new Error('Chưa xuất được hình nhân vật này.');
+  }
+
+  return new XMLSerializer().serializeToString(clone);
+
+}
+
+export async function createLookbookPreview(svg: SVGSVGElement, signal?: AbortSignal): Promise<string> {
+  checkAbort(signal);
+  const url = URL.createObjectURL(new Blob([serializeAvatarSvg(svg)], { type: 'image/svg+xml;charset=utf-8' }));
+  try {
+    const image = await loadImage(url, signal);
+    checkAbort(signal);
+    const canvas = document.createElement('canvas');
+    canvas.width = 340;
+    canvas.height = 520;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Trình duyệt chưa tạo được ảnh bản phối.');
+    ctx.fillStyle = '#f8f5ef';
+    ctx.fillRect(0, 0, 340, 520);
+    ctx.drawImage(image, 0, 0, 340, 520);
+    const preview = canvas.toDataURL('image/png');
+    if (preview.length > 600000) throw new Error('Ảnh bản phối quá lớn. Hãy thử lại.');
+    return preview;
+  } finally { URL.revokeObjectURL(url); }
 }
