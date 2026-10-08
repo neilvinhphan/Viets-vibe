@@ -1933,18 +1933,38 @@ QUY T\u1EAEC CH\u1EA4M \u0110I\u1EC2M (M\u1EE8C \u0110\u1ED8 V\u1EEAA PH\u1EA2I 
 Ch\u1EC9 tr\u1EA3 top 6 \u1EA3nh c\xF3 \u0111i\u1EC3m cao nh\u1EA5t, ch\u1EC9 l\u1EA5y \u1EA3nh \u0111\u1EA1t t\u1EEB 65 \u0111i\u1EC3m tr\u1EDF l\xEAn, s\u1EAFp x\u1EBFp gi\u1EA3m d\u1EA7n. N\u1EBFu kh\xF4ng c\xF3 \u1EA3nh \u0111\u1EA1t chu\u1EA9n, tr\u1EA3 candidates: [].
 {"candidates":[{"imageUrl":"URL \u0111\u01B0\u1EE3c g\u1EAFn v\u1EDBi \u1EA3nh \u0111\xEDnh k\xE8m","matchScore":88,"matchReason":"Kh\u1EDBp phom \xC1o Ng\u0169 Th\xE2n xanh lam, \u1EA3nh ch\u1EE5p to\xE0n th\xE2n r\xF5 r\xE0ng, g\xF3c nghi\xEAng nh\u1EB9 t\u1EF1 nhi\xEAn ph\xF9 h\u1EE3p VTON."}]}
 Ch\u1EC9 d\xF9ng ch\xEDnh x\xE1c imageUrl \u0111\u01B0\u1EE3c cung c\u1EA5p. Kh\xF4ng t\u1EA1o URL m\u1EDBi. Kh\xF4ng suy \u0111o\xE1n n\u1ED9i dung c\u1EE7a \u1EA3nh kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c.`;
+function extractProxyUrl(u) {
+  if (!u) return null;
+  try {
+    if (u.includes("url=")) {
+      const match = u.match(/[?&]url=([^&]+)/);
+      if (match) return decodeURIComponent(match[1]);
+    }
+  } catch {
+  }
+  return null;
+}
 function selectModerateCandidates(result, pool) {
   const candidates = result?.candidates;
   if (!Array.isArray(candidates)) throw new Error("Invalid VTON response");
   const allowed = /* @__PURE__ */ new Map();
   for (const img of pool) {
-    allowed.set(img.imageUrl, img);
-    allowed.set(img.imageUrl.trim(), img);
-    try {
-      allowed.set(decodeURIComponent(img.imageUrl), img);
-      allowed.set(decodeURIComponent(img.imageUrl).trim(), img);
-    } catch {
-    }
+    const register = (key) => {
+      if (!key) return;
+      allowed.set(key, img);
+      allowed.set(key.trim(), img);
+      try {
+        const decoded = decodeURIComponent(key);
+        allowed.set(decoded, img);
+        allowed.set(decoded.trim(), img);
+      } catch {
+      }
+    };
+    register(img.imageUrl);
+    register(img.originalImageUrl);
+    register(img.thumbnailUrl);
+    register(extractProxyUrl(img.imageUrl));
+    register(extractProxyUrl(img.thumbnailUrl));
   }
   const selected = /* @__PURE__ */ new Map();
   for (const item of candidates) {
@@ -1956,6 +1976,12 @@ function selectModerateCandidates(result, pool) {
         const decoded = decodeURIComponent(rawUrl);
         image = allowed.get(decoded) || allowed.get(decoded.trim());
       } catch {
+      }
+    }
+    if (!image) {
+      const proxyParam = extractProxyUrl(rawUrl);
+      if (proxyParam) {
+        image = allowed.get(proxyParam) || allowed.get(proxyParam.trim());
       }
     }
     if (!image) continue;
@@ -1984,21 +2010,32 @@ async function loadScoringImages(pool, load) {
       const image = pool[index++];
       if (!image) break;
       const rawThumbnail = image.thumbnailUrl?.startsWith("/api/image-proxy?") ? new URL(image.thumbnailUrl, "http://localhost").searchParams.get("url") : image.thumbnailUrl;
-      const source = rawThumbnail || image.originalImageUrl || image.imageUrl;
-      if (!source) continue;
-      try {
-        const photo = await load(source, signal);
-        if (!["image/jpeg", "image/png", "image/webp"].includes(photo.mime) || photo.bytes.length > 2 * 1024 * 1024 || bytes + photo.bytes.length > 16 * 1024 * 1024) continue;
-        bytes += photo.bytes.length;
-        images.push({ imageUrl: image.imageUrl, mime: photo.mime, data: photo.bytes.toString("base64") });
-      } catch {
+      const primarySource = rawThumbnail || image.originalImageUrl || image.imageUrl;
+      const fallbackSource = primarySource !== rawThumbnail && rawThumbnail ? rawThumbnail : primarySource !== image.originalImageUrl && image.originalImageUrl ? image.originalImageUrl : null;
+      let photo = null;
+      if (primarySource) {
+        try {
+          photo = await load(primarySource, signal);
+        } catch {
+          if (fallbackSource && !signal.aborted) {
+            try {
+              photo = await load(fallbackSource, signal);
+            } catch {
+            }
+          }
+        }
       }
+      if (!photo) continue;
+      if (!["image/jpeg", "image/png", "image/webp"].includes(photo.mime) || photo.bytes.length > 2 * 1024 * 1024 || bytes + photo.bytes.length > 16 * 1024 * 1024) continue;
+      bytes += photo.bytes.length;
+      images.push({ imageUrl: image.imageUrl, mime: photo.mime, data: photo.bytes.toString("base64") });
     }
   }));
   return images;
 }
 function geminiGenerator() {
-  const key = process.env.GEMINI_API_KEY;
+  const rawKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEYS?.split(",")[0] || process.env.VITE_GEMINI_API_KEY;
+  const key = rawKey?.replace(/^["']|["']$/g, "").trim();
   if (!key || key === "MY_GEMINI_API_KEY") return void 0;
   const client = new GoogleGenAI({ apiKey: key });
   return async (prompt, options) => {
@@ -2008,12 +2045,12 @@ function geminiGenerator() {
       config: {
         systemInstruction: options?.systemInstruction,
         responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 0 },
         httpOptions: { timeout: 7e3 },
         abortSignal: AbortSignal.timeout(7e3)
       }
     });
-    return JSON.parse(result.text || "{}");
+    const cleanText = (result.text || "{}").replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    return JSON.parse(cleanText || "{}");
   };
 }
 async function findSimilarImages(garments, dependencies, customQueries) {
@@ -2023,7 +2060,7 @@ async function findSimilarImages(garments, dependencies, customQueries) {
   let queryMode = customQueries ? "custom" : "fallback";
   let rankingMode = "fallback";
   const outfit = garments.map(({ id, name, category, colorName, dynasty }) => ({ id, name, category, colorName, dynasty }));
-  let aiAvailable = Boolean(generate);
+  const aiAvailable = Boolean(generate);
   if (generate && !customQueries && process.env.ENABLE_GEMINI_QUERY_REWRITE === "true") {
     try {
       const hasModern = garments.some((g) => g.dynasty === "modern");
@@ -2046,7 +2083,6 @@ B\u1EA3n ph\u1ED1i: ${JSON.stringify(outfit)}. G\u1EE3i \xFD n\u1EC1n: ${JSON.st
         queryMode = "gemini";
       }
     } catch {
-      aiAvailable = false;
     }
   }
   const searches = await Promise.allSettled([...new Set(Object.values(queries))].map((query) => search(query)));
@@ -2082,7 +2118,8 @@ B\u1EA3n ph\u1ED1i: ${JSON.stringify(outfit)}. G\u1EE3i \xFD n\u1EC1n: ${JSON.st
           images = heuristicImages.length > 0 ? heuristicImages : [];
         }
       }
-    } catch {
+    } catch (err) {
+      console.warn("VTON Vision scoring fallback reason:", err);
     }
   }
   let searchMode = "web";

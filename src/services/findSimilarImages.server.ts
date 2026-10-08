@@ -26,17 +26,37 @@ Chỉ trả top 6 ảnh có điểm cao nhất, chỉ lấy ảnh đạt từ 65
 {"candidates":[{"imageUrl":"URL được gắn với ảnh đính kèm","matchScore":88,"matchReason":"Khớp phom Áo Ngũ Thân xanh lam, ảnh chụp toàn thân rõ ràng, góc nghiêng nhẹ tự nhiên phù hợp VTON."}]}
 Chỉ dùng chính xác imageUrl được cung cấp. Không tạo URL mới. Không suy đoán nội dung của ảnh không đọc được.`;
 
+function extractProxyUrl(u?: string): string | null {
+  if (!u) return null;
+  try {
+    if (u.includes('url=')) {
+      const match = u.match(/[?&]url=([^&]+)/);
+      if (match) return decodeURIComponent(match[1]);
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
 export function selectModerateCandidates(result: unknown, pool: ReferenceOutfitImage[]) {
   const candidates = (result as { candidates?: unknown })?.candidates;
   if (!Array.isArray(candidates)) throw new Error('Invalid VTON response');
   const allowed = new Map<string, ReferenceOutfitImage>();
   for (const img of pool) {
-    allowed.set(img.imageUrl, img);
-    allowed.set(img.imageUrl.trim(), img);
-    try {
-      allowed.set(decodeURIComponent(img.imageUrl), img);
-      allowed.set(decodeURIComponent(img.imageUrl).trim(), img);
-    } catch { /* ignore decode error */ }
+    const register = (key?: string | null) => {
+      if (!key) return;
+      allowed.set(key, img);
+      allowed.set(key.trim(), img);
+      try {
+        const decoded = decodeURIComponent(key);
+        allowed.set(decoded, img);
+        allowed.set(decoded.trim(), img);
+      } catch { /* ignore decode error */ }
+    };
+    register(img.imageUrl);
+    register(img.originalImageUrl);
+    register(img.thumbnailUrl);
+    register(extractProxyUrl(img.imageUrl));
+    register(extractProxyUrl(img.thumbnailUrl));
   }
   const selected = new Map<string, ReferenceOutfitImage>();
   for (const item of candidates) {
@@ -48,6 +68,12 @@ export function selectModerateCandidates(result: unknown, pool: ReferenceOutfitI
         const decoded = decodeURIComponent(rawUrl);
         image = allowed.get(decoded) || allowed.get(decoded.trim());
       } catch { /* ignore */ }
+    }
+    if (!image) {
+      const proxyParam = extractProxyUrl(rawUrl);
+      if (proxyParam) {
+        image = allowed.get(proxyParam) || allowed.get(proxyParam.trim());
+      }
     }
     if (!image) continue;
     const candidate = { ...image, matchScore: Math.round(item.matchScore), matchReason: item.matchReason.trim() };
@@ -79,14 +105,28 @@ async function loadScoringImages(pool: ReferenceOutfitImage[], load: typeof fetc
       const rawThumbnail = image.thumbnailUrl?.startsWith('/api/image-proxy?')
         ? new URL(image.thumbnailUrl, 'http://localhost').searchParams.get('url')
         : image.thumbnailUrl;
-      const source = rawThumbnail || image.originalImageUrl || image.imageUrl;
-      if (!source) continue;
-      try {
-        const photo = await load(source, signal);
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(photo.mime) || photo.bytes.length > 2 * 1024 * 1024 || bytes + photo.bytes.length > 16 * 1024 * 1024) continue;
-        bytes += photo.bytes.length;
-        images.push({ imageUrl: image.imageUrl, mime: photo.mime, data: photo.bytes.toString('base64') });
-      } catch { /* An unreadable image cannot be visually approved. */ }
+      const primarySource = rawThumbnail || image.originalImageUrl || image.imageUrl;
+      const fallbackSource = primarySource !== rawThumbnail && rawThumbnail
+        ? rawThumbnail
+        : (primarySource !== image.originalImageUrl && image.originalImageUrl ? image.originalImageUrl : null);
+
+      let photo: Awaited<ReturnType<typeof load>> | null = null;
+      if (primarySource) {
+        try {
+          photo = await load(primarySource, signal);
+        } catch {
+          if (fallbackSource && !signal.aborted) {
+            try {
+              photo = await load(fallbackSource, signal);
+            } catch { /* Both sources failed */ }
+          }
+        }
+      }
+
+      if (!photo) continue;
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(photo.mime) || photo.bytes.length > 2 * 1024 * 1024 || bytes + photo.bytes.length > 16 * 1024 * 1024) continue;
+      bytes += photo.bytes.length;
+      images.push({ imageUrl: image.imageUrl, mime: photo.mime, data: photo.bytes.toString('base64') });
     }
   }));
   return images;
@@ -97,7 +137,8 @@ export interface SearchDependencies {
   search: (query: string) => Promise<ReferenceOutfitImage[]>;
 }
 function geminiGenerator() {
-  const key = process.env.GEMINI_API_KEY;
+  const rawKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEYS?.split(',')[0] || process.env.VITE_GEMINI_API_KEY;
+  const key = rawKey?.replace(/^["']|["']$/g, '').trim();
   if (!key || key === 'MY_GEMINI_API_KEY') return undefined;
   const client = new GoogleGenAI({ apiKey: key });
   return async (prompt: string, options?: ScoreOptions) => {
@@ -107,12 +148,12 @@ function geminiGenerator() {
       config: {
         systemInstruction: options?.systemInstruction,
         responseMimeType: 'application/json',
-        thinkingConfig: { thinkingBudget: 0 },
         httpOptions: { timeout: 7000 },
         abortSignal: AbortSignal.timeout(7000),
       },
     });
-    return JSON.parse(result.text || '{}');
+    const cleanText = (result.text || '{}').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    return JSON.parse(cleanText || '{}');
   };
 }
 
@@ -123,7 +164,7 @@ export async function findSimilarImages(garments: Garment[], dependencies: Searc
   let queryMode: SimilarImagesResult['queryMode'] = customQueries ? 'custom' : 'fallback';
   let rankingMode: SimilarImagesResult['rankingMode'] = 'fallback';
   const outfit = garments.map(({ id, name, category, colorName, dynasty }) => ({ id, name, category, colorName, dynasty }));
-  let aiAvailable = Boolean(generate);
+  const aiAvailable = Boolean(generate);
   if (generate && !customQueries && process.env.ENABLE_GEMINI_QUERY_REWRITE === 'true') {
     try {
       const hasModern = garments.some(g => g.dynasty === 'modern');
@@ -145,7 +186,7 @@ Bản phối: ${JSON.stringify(outfit)}. Gợi ý nền: ${JSON.stringify(querie
         queries = Object.fromEntries(Object.entries(queries).map(([key, value]) => [key, `${value.replaceAll(vtonModifiers, '').trim().slice(0, 219 - vtonModifiers.length)} ${vtonModifiers}`])) as Queries;
         queryMode = 'gemini';
       }
-    } catch { aiAvailable = false; /* Missing key, quota, invalid JSON, timeout: keep deterministic queries. */ }
+    } catch { /* Missing key, quota, invalid JSON, timeout: keep deterministic queries without turning off vision. */ }
   }
   const searches = await Promise.allSettled([...new Set(Object.values(queries))].map(query => search(query)));
   const succeeded = searches.filter(r => r.status === 'fulfilled');
@@ -179,7 +220,10 @@ Bản phối: ${JSON.stringify(outfit)}. Gợi ý nền: ${JSON.stringify(querie
           images = heuristicImages.length > 0 ? heuristicImages : [];
         }
       }
-    } catch { /* Preserve explicitly unverified metadata fallback when vision is unavailable. */ }
+    } catch (err) {
+      console.warn('VTON Vision scoring fallback reason:', err);
+      /* Preserve explicitly unverified metadata fallback when vision is unavailable. */
+    }
   }
   let searchMode: SimilarImagesResult['searchMode'] = 'web';
   if (!images.length) {
