@@ -2037,7 +2037,7 @@ function geminiGenerator() {
   const rawKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEYS?.split(",")[0] || process.env.VITE_GEMINI_API_KEY;
   const key = rawKey?.replace(/^["']|["']$/g, "").trim();
   if (!key || key === "MY_GEMINI_API_KEY") return void 0;
-  const client = new GoogleGenAI({ apiKey: key, httpOptions: { timeout: 8e3 } });
+  const client = new GoogleGenAI({ apiKey: key, httpOptions: { timeout: 8e3, headers: { "X-Server-Timeout": "10" } } });
   return async (prompt, options) => {
     const model = process.env.LOOKBOOK_GEMINI_MODEL || "gemini-2.5-flash";
     const result = await client.models.generateContent({
