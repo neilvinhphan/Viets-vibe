@@ -23,7 +23,6 @@ export function ReferenceImagePicker({ garments, onSelectReferenceImage, initial
   const [filter, setFilter] = useState<'all' | 'remix' | 'traditional'>('all');
   const [uploads, setUploads] = useState<ReferenceOutfitImage[]>(initialSelection?.isUpload ? [initialSelection] : []);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(initialSelection?.id || null);
-  const [confirmed, setConfirmed] = useState(Boolean(initialSelection));
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -31,7 +30,6 @@ export function ReferenceImagePicker({ garments, onSelectReferenceImage, initial
   const [downloadNotice, setDownloadNotice] = useState('');
   const downloadPending = useRef(false);
   const [failedIds, setFailedIds] = useState<string[]>([]);
-  const [loadedIds, setLoadedIds] = useState<string[]>([]);
   const [thumbnailIds, setThumbnailIds] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const mounted = useRef(true);
@@ -130,9 +128,8 @@ export function ReferenceImagePicker({ garments, onSelectReferenceImage, initial
   const suggestions = result?.images || [];
   const retained = initialSelection && !initialSelection.isUpload && !suggestions.some(img => img.id === initialSelection.id) ? [initialSelection] : [];
   const images = [...uploads, ...retained, ...suggestions].map(img => thumbnailIds.includes(img.id) && img.thumbnailUrl ? { ...img, imageUrl: img.thumbnailUrl } : img);
-  const selected = images.find(img => img.id === selectedImageId && !failedIds.includes(img.id));
   const visible = images.filter(img => (img.isUpload || filter === 'all' || img.category === filter) && !failedIds.includes(img.id));
-  const choose = (image: ReferenceOutfitImage) => { setSelectedImageId(image.id); setConfirmed(false); };
+  const choose = (image: ReferenceOutfitImage) => { setSelectedImageId(image.id); onSelectReferenceImage?.(image); };
 
   async function download(image: ReferenceOutfitImage) {
     if (downloadPending.current) return;
@@ -175,7 +172,7 @@ export function ReferenceImagePicker({ garments, onSelectReferenceImage, initial
         sourceName: 'Ảnh từ thiết bị của bạn', category: 'remix', garmentId: '', tags: [],
         matchScore: 0, matchReason: 'Bạn tự chọn ảnh này; chưa chấm điểm tương đồng.', isUpload: true,
       };
-      setUploads(prev => [item, ...prev]); setLoadedIds(prev => [...prev, item.id]); choose(item); setFilter('all');
+      setUploads(prev => [item, ...prev]); choose(item); setFilter('all');
     } catch { if (mounted.current) setUploadError('Không đọc được ảnh này. Hãy thử một tệp ảnh khác.'); }
     finally { if (mounted.current) setUploading(false); }
   }
@@ -224,11 +221,10 @@ export function ReferenceImagePicker({ garments, onSelectReferenceImage, initial
           {visible.map(img => <article key={img.id} className={`min-w-0 overflow-hidden rounded-2xl border-2 bg-white transition-all ${selectedImageId === img.id ? 'border-amber-500 ring-2 ring-amber-200' : 'border-stone-200'}`}>
             <button onClick={() => choose(img)} aria-pressed={selectedImageId === img.id} aria-label={`Chọn ${img.title}`} className="group block w-full text-left focus-visible:outline-2 focus-visible:outline-amber-600">
               <div className="relative aspect-[3/4] overflow-hidden bg-stone-100">
-                <img src={img.imageUrl} alt={img.title} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.02]" onLoad={() => setLoadedIds(prev => prev.includes(img.id) ? prev : [...prev, img.id])} onError={() => {
-                  setLoadedIds(prev => prev.filter(id => id !== img.id));
+                <img src={img.imageUrl} alt={img.title} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.02]" onError={() => {
                   if (img.thumbnailUrl && !thumbnailIds.includes(img.id)) { setThumbnailIds(prev => [...prev, img.id]); return; }
                   setFailedIds(prev => prev.includes(img.id) ? prev : [...prev, img.id]);
-                  if (selectedImageId === img.id) { setSelectedImageId(null); setConfirmed(false); }
+                  if (selectedImageId === img.id) { setSelectedImageId(null); }
                 }} />
                 <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-stone-800 shadow-sm">{img.isUpload ? 'Ảnh của bạn' : result?.searchMode === 'catalog' ? 'Ảnh tham khảo' : `Giống ${img.matchScore}%`}</span>
                 {selectedImageId === img.id && <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-amber-400 px-2 py-1 text-[10px] font-bold text-stone-950"><Check className="h-3 w-3" />Đã chọn</span>}
@@ -252,12 +248,6 @@ export function ReferenceImagePicker({ garments, onSelectReferenceImage, initial
         {!loading && result && !visible.length && <p role="status" className="rounded-2xl border border-dashed border-stone-300 p-6 text-center text-sm text-stone-500">Chưa có ảnh hiển thị trong nhóm này. Hãy đổi bộ lọc, tìm lại hoặc tải ảnh của bạn.</p>}
         {failedIds.length > 0 && <p role="status" className="mt-3 text-xs text-stone-500">Đã ẩn {failedIds.length} ảnh không tải được từ nguồn.</p>}
       </div>
-      <footer className="shrink-0 border-t border-stone-200 bg-white p-3 sm:p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 flex-1 text-xs"><p className="font-semibold text-stone-800 break-words">{selected ? selected.title : 'Chọn một ảnh mẫu để tiếp tục'}</p><p className="mt-1 text-[11px] text-stone-500" role="status">{confirmed ? 'Đã lưu ảnh mẫu cho bản phối hiện tại.' : 'Ảnh đã chốt được giữ khi bạn mở lại Lookbook.'}</p></div>
-          <button disabled={!selected || !loadedIds.includes(selected.id) || confirmed} onClick={() => { if (selected) { onSelectReferenceImage?.(selected); setConfirmed(true); } }} className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-3 text-xs font-bold text-stone-950 transition-colors hover:bg-amber-300 disabled:cursor-default disabled:bg-stone-100 disabled:text-stone-400"><Check className="h-4 w-4 shrink-0" /><span>{confirmed ? 'Đã Chốt Ảnh Mẫu' : 'Chốt Ảnh Mẫu Này'}<span className="block mt-0.5 text-[10px] font-normal">Dùng cho bản phối hiện tại</span></span></button>
-        </div>
-      </footer>
     </section>
   );
 }
