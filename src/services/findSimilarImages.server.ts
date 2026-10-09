@@ -140,20 +140,13 @@ function geminiGenerator() {
   const rawKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEYS?.split(',')[0] || process.env.VITE_GEMINI_API_KEY;
   const key = rawKey?.replace(/^["']|["']$/g, '').trim();
   if (!key || key === 'MY_GEMINI_API_KEY') return undefined;
-  const client = new GoogleGenAI({ apiKey: key });
+  const client = new GoogleGenAI({ apiKey: key, httpOptions: { timeout: 8000 } });
   return async (prompt: string, options?: ScoreOptions) => {
     const model = process.env.LOOKBOOK_GEMINI_MODEL || 'gemini-2.5-flash';
-    const isFlash25 = model.includes('2.5-flash');
     const result = await client.models.generateContent({
       model,
       contents: options ? [{ role: 'user', parts: [{ text: prompt }, ...options.images.flatMap(img => [{ text: `imageUrl: ${img.imageUrl}` }, { inlineData: { mimeType: img.mime, data: img.data } }])] }] : prompt,
-      config: {
-        systemInstruction: options?.systemInstruction,
-        responseMimeType: 'application/json',
-        ...(isFlash25 ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
-        httpOptions: { timeout: 5000 },
-        abortSignal: AbortSignal.timeout(5000),
-      },
+      config: { systemInstruction: options?.systemInstruction, responseMimeType: 'application/json' },
     });
     const cleanText = (result.text || '{}').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     return JSON.parse(cleanText || '{}');
