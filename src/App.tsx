@@ -854,7 +854,7 @@ export default function App() {
           {/* Center: Validation Status Pill */}
 
           {/* Center: Validation Status Pill */}
-          {activeView !== "lookbook" && (
+          {activeView === "studio_2d" && !isIntroActive && (
             <div className="hidden md:flex items-center justify-center shrink-0 md:mx-1">
               {renderValidationStatusPill()}
             </div>
@@ -959,7 +959,7 @@ export default function App() {
         </header>
 
         {/* Mobile Validation Status Pill */}
-        {activeView !== "lookbook" && (
+        {activeView === "studio_2d" && !isIntroActive && (
           <div className="fixed bottom-[104px] left-1/2 -translate-x-1/2 z-[60] flex md:hidden items-center justify-center shrink-0">
             {renderValidationStatusPill()}
           </div>
