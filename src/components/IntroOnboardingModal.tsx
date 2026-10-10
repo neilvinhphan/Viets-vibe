@@ -656,7 +656,7 @@ export const IntroOnboardingModal: React.FC<IntroOnboardingModalProps> = ({
             Gen Z Studio
           </span>
           <h1 className="font-royal text-base sm:text-2xl md:text-[26px] font-bold text-amber-100 tracking-wider leading-tight my-0.5 sm:my-1 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
-            VIỆT PHỤC
+            VIỆT VIBE
           </h1>
           <div className="w-10 sm:w-14 h-px bg-gradient-to-r from-transparent via-amber-400/80 to-transparent my-0.5 sm:my-1" />
           <span className="text-[8.5px] sm:text-[10.5px] uppercase tracking-[0.2em] text-amber-300 font-medium animate-pulse mt-0.5">
