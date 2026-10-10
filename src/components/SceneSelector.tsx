@@ -231,12 +231,12 @@ export const SceneSelector: React.FC<SceneSelectorProps> = ({
                           : 'text-stone-700 hover:bg-stone-100'
                       }`}
                     >
-                      <div>
-                        <div className="font-semibold text-stone-900 flex items-center gap-1.5">
-                          <Landmark className="w-3 h-3 text-[#996515]" />
-                          {s.name}
+                      <div className="flex-1 min-w-0 pr-2">
+                        <div className="font-semibold text-stone-900 flex items-center gap-1.5 truncate">
+                          <Landmark className="w-3 h-3 text-[#996515] shrink-0" />
+                          <span className="truncate">{s.name}</span>
                         </div>
-                        <div className="text-[10px] text-stone-500 truncate max-w-[200px]">
+                        <div className="text-[10px] text-stone-500 whitespace-normal break-words leading-tight mt-0.5">
                           {s.era} • {s.subtitle}
                         </div>
                       </div>
@@ -296,11 +296,11 @@ export const SceneSelector: React.FC<SceneSelectorProps> = ({
                           : 'text-stone-700 hover:bg-stone-100'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-[#996515]" />
-                        <div>
-                          <div className="font-semibold text-stone-900">{ev.label}</div>
-                          <div className="text-[10px] text-stone-500">{ev.description}</div>
+                      <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                        <Icon className="w-4 h-4 text-[#996515] shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-stone-900 truncate">{ev.label}</div>
+                          <div className="text-[10px] text-stone-500 whitespace-normal break-words leading-tight mt-0.5">{ev.description}</div>
                         </div>
                       </div>
                       {isSelected && <Check className="w-3.5 h-3.5 text-amber-700 shrink-0" />}
@@ -359,11 +359,11 @@ export const SceneSelector: React.FC<SceneSelectorProps> = ({
                           : 'text-stone-700 hover:bg-stone-100'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <Icon className={`w-4 h-4 ${w.colorClass}`} />
-                        <div>
-                          <div className="font-semibold text-stone-900">{w.label}</div>
-                          <div className="text-[10px] text-stone-500">{w.temp}</div>
+                      <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                        <Icon className={`w-4 h-4 ${w.colorClass} shrink-0`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-stone-900 truncate">{w.label}</div>
+                          <div className="text-[10px] text-stone-500 whitespace-normal break-words leading-tight mt-0.5">{w.temp}</div>
                         </div>
                       </div>
                       {isSelected && <Check className="w-3.5 h-3.5 text-amber-700 shrink-0" />}

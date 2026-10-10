@@ -18,6 +18,9 @@
   max-width: 1480px;
   margin: auto;
   padding: 22px 36px 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 
 .lookbook-page button {
@@ -77,6 +80,7 @@
   position: relative;
   min-height: 590px;
   display: grid;
+  flex: 1;
   grid-template-columns:
     minmax(0, 1fr) minmax(300px, 410px) minmax(0, 1fr);
   align-items: center;

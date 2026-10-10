@@ -76,8 +76,7 @@ function VibePromptSection({
       <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80 space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-bold text-amber-950 flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-[#996515]" />✨ AI
-            Phối Theo Vibe
+            <Sparkles className="w-3 h-3 text-[#996515]" />✨ AI Phối Theo Vibe
           </span>
           <span className="text-[9.5px] text-amber-800/80 font-mono">
             Gemini 2.5 Flash
@@ -213,19 +212,19 @@ export default function App() {
   const [show3DDisclaimer, setShow3DDisclaimer] = useState(false);
 
   // 3D Showroom <-> 2D Gen Z Remix Studio 2-way mode
-  const [activeView, setActiveView] = useState<"studio_2d" | "gallery_3d" | "lookbook">(
-    "studio_2d",
-  );
+  const [activeView, setActiveView] = useState<
+    "studio_2d" | "gallery_3d" | "lookbook"
+  >("studio_2d");
 
   useEffect(() => {
-    const is3DView = activeView === 'gallery_3d';
-    
+    const is3DView = activeView === "gallery_3d";
+
     // Mỗi khi chuyển vào View 3D, LUÔN LUÔN bật Pop-up lên (Không cache)
     if (is3DView) {
       setShow3DDisclaimer(true);
     } else {
       // Tắt Pop-up đi nếu chuyển sang view khác (vd: quay lại 2D) để tránh lỗi đọng state
-      setShow3DDisclaimer(false); 
+      setShow3DDisclaimer(false);
     }
   }, [activeView]);
 
@@ -238,12 +237,14 @@ export default function App() {
   const [equippedGarmentIds, setEquippedGarmentIds] = useState<string[]>(
     defaultPreset.garmentIds,
   );
-  const referenceOutfitKey = [...equippedGarmentIds].sort().join('|');
+  const referenceOutfitKey = [...equippedGarmentIds].sort().join("|");
   const [referenceSelection, setReferenceSelection] = useState<{
     outfitKey: string;
     image: ReferenceOutfitImage;
   } | null>(null);
-  useEffect(() => { setReferenceSelection(null); }, [referenceOutfitKey]);
+  useEffect(() => {
+    setReferenceSelection(null);
+  }, [referenceOutfitKey]);
 
   // Scene, Event, Weather & Validation Mode states
   const [activeScene, setActiveScene] = useState<HistoricalScene>(
@@ -266,20 +267,27 @@ export default function App() {
   // First-impression Onboarding state
   const [isIntroActive, setIsIntroActive] = useState<boolean>(true);
 
-
   const [galleryTargetId, setGalleryTargetId] = useState<string>("overview");
   const {
-    snapshots, storageNotice, selectedId, selectSnapshot,
-    saveSnapshot, renameSnapshot, toggleFavorite, deleteSnapshot,
+    snapshots,
+    storageNotice,
+    selectedId,
+    selectSnapshot,
+    saveSnapshot,
+    renameSnapshot,
+    toggleFavorite,
+    deleteSnapshot,
   } = useLookbookCollection();
 
   // Single exclusive active state for all popovers, menus, and modals
   // Possible values: 'remix' | 'tools' | 'character_customizer' | 'wardrobe' | 'validation' | 'lookbook' | 'gemini' | 'historical_info' | null
   const [activePopover, setActivePopover] = useState<string | null>(null);
-  const [lookbookTab, setLookbookTab] = useState<'compare' | 'reference'>('reference');
-  const openLookbookModal = (tab: 'compare' | 'reference' = 'reference') => {
+  const [lookbookTab, setLookbookTab] = useState<"compare" | "reference">(
+    "reference",
+  );
+  const openLookbookModal = (tab: "compare" | "reference" = "reference") => {
     setLookbookTab(tab);
-    setActivePopover('lookbook');
+    setActivePopover("lookbook");
   };
   const switchView = (view: "studio_2d" | "gallery_3d" | "lookbook") => {
     setActivePopover(null);
@@ -615,8 +623,10 @@ export default function App() {
   };
 
   const handleApplyLookbookSnapshot = (snapshot: LookbookSnapshot) => {
-    setEquippedGarmentIds(snapshot.garments.map(item => item.id));
-    const scene = HISTORICAL_SCENES.find(item => item.id === snapshot.scene.id);
+    setEquippedGarmentIds(snapshot.garments.map((item) => item.id));
+    const scene = HISTORICAL_SCENES.find(
+      (item) => item.id === snapshot.scene.id,
+    );
     if (scene) setActiveScene(scene);
     setSceneOpacity(snapshot.sceneOpacity);
     setCharacterGender(snapshot.gender);
@@ -780,7 +790,7 @@ export default function App() {
             <div className="flex items-baseline gap-1.5 sm:gap-2">
               <h1 className="text-base md:text-lg font-semibold font-royal tracking-wide text-stone-900 whitespace-nowrap">
                 <span className="md:hidden">Việt Phục</span>
-                <span className="hidden md:inline">Việt Phục Remix</span>
+                <span className="hidden md:inline">Việt Vibe</span>
               </h1>
               <span className="hidden lg:inline text-xs font-serif italic text-stone-500">
                 — Gen Z Studio
@@ -837,9 +847,11 @@ export default function App() {
               </button>
             </div>
           </div>
-          {activeView === "lookbook" && <TryOnWebsiteLink onOpen={() => setActivePopover(null)} />}
+          {activeView === "lookbook" && (
+            <TryOnWebsiteLink onOpen={() => setActivePopover(null)} />
+          )}
 
-{/* Center: Validation Status Pill */}
+          {/* Center: Validation Status Pill */}
 
           {/* Center: Validation Status Pill */}
           {activeView !== "lookbook" && (
@@ -849,7 +861,9 @@ export default function App() {
           )}
 
           {/* Right: Quick actions cluster */}
-          <div className={`${activeView === "lookbook" ? "hidden" : "flex"} items-center gap-1.5 md:gap-2 shrink-0`}>
+          <div
+            className={`${activeView === "lookbook" ? "hidden" : "flex"} items-center gap-1.5 md:gap-2 shrink-0`}
+          >
             {/* Remix / Presets Dropdown (includes ✨ AI Vibe-to-Outfit input) */}
             <div className="relative">
               <button
@@ -943,6 +957,13 @@ export default function App() {
             </button>
           </div>
         </header>
+
+        {/* Mobile Validation Status Pill */}
+        {activeView !== "lookbook" && (
+          <div className="fixed bottom-[104px] left-1/2 -translate-x-1/2 z-[60] flex md:hidden items-center justify-center shrink-0">
+            {renderValidationStatusPill()}
+          </div>
+        )}
 
         {/* Transparent backdrop for dismissing dropdown popovers when clicking outside */}
         {(isRemixMenuOpen || isToolsMenuOpen) && (
@@ -1242,8 +1263,14 @@ export default function App() {
           savedVariantA={savedVariantA}
           onSaveCurrentAsVariantA={handleSaveCurrentAsVariantA}
           onApplyVariantA={handleApplyVariantA}
-          selectedReferenceImage={referenceSelection?.outfitKey === referenceOutfitKey ? referenceSelection.image : null}
-          onSelectReferenceImage={(image) => setReferenceSelection({ outfitKey: referenceOutfitKey, image })}
+          selectedReferenceImage={
+            referenceSelection?.outfitKey === referenceOutfitKey
+              ? referenceSelection.image
+              : null
+          }
+          onSelectReferenceImage={(image) =>
+            setReferenceSelection({ outfitKey: referenceOutfitKey, image })
+          }
         />
 
         {/* Gemini AI Image Understanding Modal */}
@@ -1253,31 +1280,45 @@ export default function App() {
           onApplyIdentifiedGarments={handleApplyIdentifiedGarments}
         />
 
-
-      {/* 2. Pop-up Welcome Cho Màn Hình 3D (Luôn hiện mỗi lần vào) */}
-      {show3DDisclaimer && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm transition-opacity">
-          <div className="bg-[#fcfaf8] max-w-md w-full rounded-2xl shadow-2xl overflow-hidden border border-amber-900/10 animate-in fade-in zoom-in duration-300">
-            <div className="p-6 text-center">
-              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-amber-700">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
-                </svg>
+        {/* 2. Pop-up Welcome Cho Màn Hình 3D (Luôn hiện mỗi lần vào) */}
+        {show3DDisclaimer && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm transition-opacity">
+            <div className="bg-[#fcfaf8] max-w-md w-full rounded-2xl shadow-2xl overflow-hidden border border-amber-900/10 animate-in fade-in zoom-in duration-300">
+              <div className="p-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="w-6 h-6 text-amber-700"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-amber-950 mb-2 font-serif">
+                  Lưu ý trước khi trải nghiệm 3D
+                </h3>
+                <p className="text-sm text-stone-600 mb-6 leading-relaxed">
+                  Các mô hình 3D trong Hành lang được thiết kế nhằm{" "}
+                  <strong>minh họa phom dáng (proxy)</strong> cho bản phối 2D.
+                  Các chi tiết hoa văn, tỷ lệ viền hoặc chất liệu có thể chứa
+                  sai lệch so với cổ phục thực tế và{" "}
+                  <strong>chưa qua giám định chuyên môn</strong>.
+                </p>
+                <button
+                  onClick={handleAccept3DDisclaimer}
+                  className="w-full py-3 px-4 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-medium transition-colors shadow-md pointer-events-auto"
+                >
+                  Tôi đã hiểu và Tiến vào Hành lang
+                </button>
               </div>
-              <h3 className="text-lg font-bold text-amber-950 mb-2 font-serif">Lưu ý trước khi trải nghiệm 3D</h3>
-              <p className="text-sm text-stone-600 mb-6 leading-relaxed">
-                Các mô hình 3D trong Hành lang được thiết kế nhằm <strong>minh họa phom dáng (proxy)</strong> cho bản phối 2D. Các chi tiết hoa văn, tỷ lệ viền hoặc chất liệu có thể chứa sai lệch so với cổ phục thực tế và <strong>chưa qua giám định chuyên môn</strong>.
-              </p>
-              <button
-                onClick={handleAccept3DDisclaimer}
-                className="w-full py-3 px-4 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-medium transition-colors shadow-md pointer-events-auto"
-              >
-                Tôi đã hiểu và Tiến vào Hành lang
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
       {isIntroActive && (
         <IntroOnboardingModal

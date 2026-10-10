@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BookOpen, Camera, ChevronLeft, ChevronRight, Heart, Layers, MoreHorizontal, Palette, Pencil, Share2, Trash2, X } from 'lucide-react';
+import { BookOpen, Camera, ChevronLeft, ChevronRight, Download, Heart, Layers, LoaderCircle, MoreHorizontal, Palette, Pencil, Share2, Trash2, X } from 'lucide-react';
 import type { EventType, Garment, ValidationMode, WeatherType } from '../types';
 import type { HistoricalScene } from '../data/historicalScenes';
 import { Avatar2D } from './Avatar2D';
 import { LookbookExportButton } from './LookbookExportButton';
 import { LookbookThumbnail } from './LookbookThumbnail';
-import { createLookbookPreview } from '../utils/exportLookbookPng';
+import { createLookbookPreview, exportLookbookPng } from '../utils/exportLookbookPng';
 import { EVENTS_CONFIG, WEATHER_CONFIG } from './SceneSelector';
 import { getOutfitEra, ERA_LIGHTING_THEMES } from '../utils/eraLighting';
 import { createLookbookSnapshot, getLookbookHeading } from '../utils/lookbookSnapshot';
@@ -54,8 +54,15 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
   const [error, setError] = useState('');
   const [announcement, setAnnouncement] = useState('');
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const captureRequest = useRef<AbortController | null>(null);
-  useEffect(() => () => captureRequest.current?.abort(), []);
+  const exportRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    return () => {
+      captureRequest.current?.abort();
+      exportRequest.current?.abort();
+    };
+  }, []);
   const pageRef = useRef<HTMLElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -158,6 +165,30 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
     } finally {
       if (captureRequest.current === controller) captureRequest.current = null;
       if (!controller.signal.aborted) setSaving(false);
+    }
+  };
+
+  const downloadCurrentLookbook = async () => {
+    if (exportRequest.current || !garments.length) return;
+    const controller = new AbortController();
+    exportRequest.current = controller;
+    setExporting(true);
+    setAnnouncement('Đang tạo ảnh xuất bản...');
+    try {
+      const svg = pageRef.current?.querySelector('.lookbook-shell #avatar-mannequin')?.closest('svg');
+      if (!svg) throw new Error('Nhân vật chưa sẵn sàng. Hãy thử lại.');
+      const filename = await exportLookbookPng({
+        svg, title, subtitle, era: eraLabel, scene: scene.name, colors: palette.map(item => item.colorHex), signal: controller.signal
+      });
+      controller.signal.throwIfAborted();
+      setAnnouncement(`Đã xuất ảnh ${filename} thành công!`);
+    } catch (cause) {
+      if (!controller.signal.aborted) {
+        setAnnouncement(cause instanceof Error ? cause.message : 'Chưa xuất được ảnh.');
+      }
+    } finally {
+      if (exportRequest.current === controller) exportRequest.current = null;
+      if (!controller.signal.aborted) setExporting(false);
     }
   };
 
@@ -279,6 +310,10 @@ export const LookbookPage: React.FC<LookbookPageProps> = ({
             )}
             <button className="lookbook-outline lookbook-more" onClick={event => openPopup('actions', event)}>
               <MoreHorizontal size={18} aria-hidden="true" /> Tùy chọn
+            </button>
+            <button className="lookbook-outline" onClick={downloadCurrentLookbook} disabled={!garments.length || exporting} title="Xuất bản dưới dạng ảnh">
+              {exporting ? <LoaderCircle size={15} className="animate-spin" aria-hidden="true" /> : <Download size={15} aria-hidden="true" />}
+              <span className="hidden sm:inline">{exporting ? 'Đang tạo...' : 'Xuất bản'}</span>
             </button>
             {selected ? (
               <button ref={mainActionRef} className="lookbook-primary" onClick={() => onApplySnapshot(selected)}>Áp dụng vào Studio</button>

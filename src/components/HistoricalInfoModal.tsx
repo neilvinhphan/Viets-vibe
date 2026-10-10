@@ -1,6 +1,5 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { Garment } from "../types";
-import { GALLERY_3D_TO_2D_MAP } from "../data/garments";
 import {
   X,
   BookOpen,
@@ -29,22 +28,7 @@ export const HistoricalInfoModal: React.FC<HistoricalInfoModalProps> = ({
 }) => {
   if (!garment) return null;
 
-  const gallery3DId = useMemo(() => {
-    for (const [galleryId, config] of Object.entries(GALLERY_3D_TO_2D_MAP)) {
-      if (
-        config.primaryGarmentId === garment.id ||
-        config.garmentIds.includes(garment.id)
-      ) {
-        return galleryId;
-      }
-    }
-    if (garment.id.includes("giao_linh")) return "giao_linh";
-    if (garment.id.includes("tu_than")) return "tu_than";
-    if (garment.id.includes("ngu_than")) return "ngu_than";
-    if (garment.id.includes("ao_dai")) return "ao_dai";
-    if (garment.id.includes("nhat_binh")) return "nhat_binh";
-    return null;
-  }, [garment.id]);
+
 
   return (
     <div
@@ -199,50 +183,27 @@ export const HistoricalInfoModal: React.FC<HistoricalInfoModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 bg-[#f5f2eb] border-t border-stone-200 flex flex-wrap items-center justify-between gap-2">
+        <div className="p-4 bg-[#f5f2eb] border-t border-stone-200 flex flex-wrap items-center justify-end gap-2">
           <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg text-xs text-stone-600 hover:text-stone-900 transition-colors"
+            onClick={() => {
+              onToggleEquip(garment);
+              onClose();
+            }}
+            className={`inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold transition-all ${
+              isEquipped
+                ? "bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100"
+                : "bg-stone-900 text-stone-50 hover:bg-stone-800 shadow-xs"
+            }`}
           >
-            Đóng bảng khảo cứu
-          </button>
-
-          <div className="flex items-center gap-2">
-            {gallery3DId && onInspect3D && (
-              <button
-                type="button"
-                onClick={() => {
-                  onInspect3D(gallery3DId);
-                  onClose();
-                }}
-                className="inline-flex items-center gap-1.5 text-xs px-3.5 py-2 rounded-lg font-semibold bg-amber-500/15 text-amber-900 border border-amber-400/60 hover:bg-amber-500/25 transition-all shadow-2xs"
-                title="Bay thẳng tới bục trưng bày 3D trong Hành lang Di sản"
-              >
-                <span>🏛️ Soi Mô Hình 3D (360°)</span>
-              </button>
+            {isEquipped ? (
+              "Tháo trang phục này"
+            ) : (
+              <>
+                <Plus className="w-3.5 h-3.5" />
+                Mặc trang phục này
+              </>
             )}
-
-            <button
-              onClick={() => {
-                onToggleEquip(garment);
-                onClose();
-              }}
-              className={`inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold transition-all ${
-                isEquipped
-                  ? "bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100"
-                  : "bg-stone-900 text-stone-50 hover:bg-stone-800 shadow-xs"
-              }`}
-            >
-              {isEquipped ? (
-                "Tháo trang phục này"
-              ) : (
-                <>
-                  <Plus className="w-3.5 h-3.5" />
-                  Mặc trang phục này
-                </>
-              )}
-            </button>
-          </div>
+          </button>
         </div>
       </div>
     </div>
