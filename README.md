@@ -14,7 +14,7 @@ Việt Vibe không chỉ là một ứng dụng web, mà là một "Bảo tàng 
 
 *   **👗 Giao diện Phối đồ 2D (Layering Studio):** Cho phép người dùng thử các lớp trang phục, từ cổ điển đến hiện đại (Gen Z style).
 *   **🏛️ Không gian Hành lang 3D:** Khám phá phom dáng trang phục dưới góc nhìn 360 độ trực quan.
-*   **🤖 Phòng thử đồ AI (Beta):** Tích hợp `gemini-3.1-pro-preview` / `gemini-2.5-flash` để phân tích hình ảnh tham khảo hoặc camera thực tế, từ đó gợi ý/nhận diện các món đồ phù hợp trong catalog.
+*   **🤖 Phòng thử đồ AI (Beta):** Tích hợp `gemini-2.5-flash` để phân tích hình ảnh tham khảo hoặc camera thực tế, từ đó gợi ý/nhận diện các món đồ phù hợp trong catalog.
 *   **⚖️ AI Linter & Cultural Validation Engine:** Tự động kiểm tra tính chính xác về mặt văn hóa, niên đại và hiển thị cảnh báo (A/B testing) khi người dùng kết hợp trang phục có thể gây sai lệch lịch sử.
 *   **📖 Lookbook Cá nhân:** Lưu trữ và quản lý bộ sưu tập các bản phối, bóc tách tone màu chủ đạo.
 
