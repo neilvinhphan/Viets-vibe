@@ -904,104 +904,15 @@ export default function App() {
               )}
             </div>
 
-            {/* Tools Menu (Simplified: SQL DDL hidden to focus 100% on fashion) */}
+            {/* Reset / Cởi Bỏ Toàn Bộ */}
             <div className="relative">
               <button
-                id="nav-tools-btn"
-                ref={toolsBtnRef}
-                onClick={() =>
-                  setActivePopover((prev) =>
-                    prev === "tools" ? null : "tools",
-                  )
-                }
-                className={`w-8 h-8 flex items-center justify-center p-0 md:w-auto md:h-auto md:p-1.5 rounded-full border transition-all shrink-0 ${
-                  isToolsMenuOpen
-                    ? "bg-stone-900 text-stone-50 border-stone-900"
-                    : "bg-white hover:bg-stone-100 text-stone-600 border-stone-200/90 shadow-2xs"
-                }`}
-                title="Công cụ bổ sung"
+                onClick={handleResetOutfit}
+                className="w-8 h-8 flex items-center justify-center p-0 rounded-full border bg-white hover:bg-rose-50 text-rose-600 border-rose-200/90 shadow-2xs transition-all shrink-0 hover:scale-105 active:scale-95"
+                title="Cởi Bỏ Toàn Bộ"
               >
-                <Sliders className="w-4 h-4" />
+                <RotateCcw className="w-4 h-4" />
               </button>
-
-              {isToolsMenuOpen && (
-                <div
-                  id="nav-tools-popover"
-                  ref={toolsMenuRef}
-                  className="fixed right-2 top-[54px] sm:absolute sm:right-0 sm:top-full sm:mt-2 w-[calc(100vw-16px)] sm:w-56 max-w-[340px] sm:max-w-none bg-white border border-stone-200 shadow-xl ring-1 ring-stone-900/5 rounded-2xl p-2 z-50 animate-fadeIn space-y-1 text-stone-800"
-                >
-                  <div className="flex items-center justify-between px-2 py-1 border-b border-stone-100 mb-1">
-                    <span className="text-xs font-semibold text-stone-800">
-                      Công Cụ Bổ Sung
-                    </span>
-                    <button
-                      onClick={() => setActivePopover(null)}
-                      className="text-stone-400 hover:text-stone-700"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <button
-                    id="mobile-validation-status"
-                    onClick={() => setActivePopover("validation")}
-                    className={`md:hidden w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs font-medium hover:bg-stone-100 ${
-                      equippedGarments.length === 0
-                        ? "text-stone-600"
-                        : metrics.status === "authentic"
-                          ? "text-emerald-700"
-                          : metrics.status === "advisory"
-                            ? "text-amber-700"
-                            : "text-rose-700"
-                    }`}
-                    title="Xem kiểm định văn hóa"
-                  >
-                    <span aria-hidden="true">•</span>
-                    <span>
-                      {equippedGarments.length === 0
-                        ? "Chưa Mặc"
-                        : `${metrics.overallScore}% ${metrics.status === "authentic" ? "Chuẩn" : metrics.status === "advisory" ? "Lưu ý" : "Lỗi"}`}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setActivePopover("gemini");
-                    }}
-                    className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs text-stone-700 hover:bg-stone-100 transition-colors"
-                  >
-                    <Camera className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Giám Định Cổ Phục AI</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      openLookbookModal("compare");
-                    }}
-                    className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs text-stone-700 hover:bg-stone-100 transition-colors"
-                  >
-                    <GitCompare className="w-3.5 h-3.5 text-sky-600" />
-                    <span>So Sánh Phương Án A/B</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsZenMode(true);
-                      setActivePopover(null);
-                    }}
-                    className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs text-stone-700 hover:bg-stone-100 transition-colors"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-[#996515]" />
-                    <span>Chế độ Chiêm Ngưỡng (Zen)</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleResetOutfit();
-                      setActivePopover(null);
-                    }}
-                    className="w-full flex items-center gap-2.5 p-2 rounded-xl text-left text-xs text-rose-700 hover:bg-rose-50 transition-colors"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
-                    <span>Cởi Bỏ Toàn Bộ</span>
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Zen Mode Button (The Single Clean Zen Toggle - Hidden on mobile) */}
