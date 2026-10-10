@@ -165,7 +165,7 @@ export const GeminiImageAnalyzerModal: React.FC<GeminiImageAnalyzerModalProps> =
                 id="btn-run-gemini-analysis"
                 onClick={handleAnalyze}
                 disabled={isAnalyzing}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-50 font-medium text-xs shadow-md disabled:opacity-50 transition-all"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-50 font-medium text-xs shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {isAnalyzing ? (
                   <>

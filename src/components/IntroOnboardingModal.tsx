@@ -644,7 +644,7 @@ export const IntroOnboardingModal: React.FC<IntroOnboardingModalProps> = ({
 
         {/* --- TÊN DỰ ÁN NẰM CHÍNH GIỮA TÂM TRỐNG ĐỒNG --- */}
         <div
-          className={`relative z-20 flex flex-col items-center justify-center text-center px-3 pointer-events-none transition-all duration-500 ${
+          className={`relative z-20 flex flex-col items-center justify-center text-center px-3 p-8 rounded-full bg-[radial-gradient(circle,rgba(20,10,5,0.85)_30%,rgba(20,10,5,0.4)_70%,transparent_100%)] pointer-events-none transition-all duration-500 ${
             isOpening
               ? "scale-150 opacity-0"
               : isLocking
@@ -655,7 +655,7 @@ export const IntroOnboardingModal: React.FC<IntroOnboardingModalProps> = ({
           <span className="text-[8px] sm:text-[10px] uppercase tracking-[0.28em] text-amber-400/90 font-semibold">
             Gen Z Studio
           </span>
-          <h1 className="font-royal text-base sm:text-2xl md:text-[26px] font-bold text-amber-100 tracking-wider leading-tight my-0.5 sm:my-1 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+          <h1 className="font-royal text-base sm:text-2xl md:text-[26px] font-bold text-amber-100 tracking-wider leading-tight my-0.5 sm:my-1 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
             VIỆT PHỤC
           </h1>
           <div className="w-10 sm:w-14 h-px bg-gradient-to-r from-transparent via-amber-400/80 to-transparent my-0.5 sm:my-1" />

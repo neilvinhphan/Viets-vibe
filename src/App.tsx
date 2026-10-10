@@ -56,7 +56,183 @@ import {
   CircleHelp,
 } from "lucide-react";
 
+function VibePromptSection({
+  isVibeLoading,
+  onApplyVibe,
+  onRandomRemix,
+  equippedGarmentIds,
+  onApplyPreset,
+}: {
+  isVibeLoading: boolean;
+  onApplyVibe: (prompt?: string) => void;
+  onRandomRemix: () => void;
+  equippedGarmentIds: string[];
+  onApplyPreset: (preset: OutfitPreset) => void;
+}) {
+  const [vibePrompt, setVibePrompt] = useState<string>("");
+
+  return (
+    <>
+      <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-amber-950 flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-[#996515]" />✨ AI
+            Phối Theo Vibe
+          </span>
+          <span className="text-[9.5px] text-amber-800/80 font-mono">
+            Gemini 2.5 Flash
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <input
+            type="text"
+            value={vibePrompt}
+            onChange={(e) => setVibePrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onApplyVibe(vibePrompt);
+            }}
+            placeholder="VD: Đi concert trời mát, thích Áo Ngũ Thân..."
+            className="flex-1 px-2.5 py-1.5 rounded-lg bg-white border border-amber-300/80 text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+          />
+          <button
+            onClick={() => onApplyVibe(vibePrompt)}
+            disabled={isVibeLoading}
+            className="p-1.5 rounded-lg bg-[#996515] hover:bg-amber-800 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Gợi ý tổ hợp y phục theo vibe"
+          >
+            {isVibeLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Send className="w-3.5 h-3.5" />
+            )}
+          </button>
+        </div>
+
+        {/* 1-Click Quick Vibe Chips */}
+        <div className="flex flex-wrap gap-1 pt-1">
+          {[
+            {
+              label: "🎸 Đi Concert",
+              prompt:
+                "Đi concert quẩy âm nhạc trời mát, phối Áo Ngũ Thân streetwear với jeans và tai nghe",
+            },
+            {
+              label: "☕ Cafe Hoài Cổ",
+              prompt:
+                "Dạo phố cafe hoài cổ với Áo Giao Lĩnh Hậu Lê, kính râm Y2K và boots da",
+            },
+            {
+              label: "🎓 Kỷ Yếu Tân Thời",
+              prompt:
+                "Chụp kỷ yếu tốt nghiệp với Áo Dài Tân Thời cách tân màu xanh pastel và sneaker",
+            },
+            {
+              label: "⛩️ Lễ Chùa Thanh Tịnh",
+              prompt:
+                "Đi lễ chùa thanh tịnh trang nghiêm với Áo Tấc tay thụng ngọc bích và hài thêu",
+            },
+          ].map((chip, idx) => (
+            <button
+              key={idx}
+              onClick={() => onApplyVibe(chip.prompt)}
+              className="px-2 py-0.5 rounded-full bg-white hover:bg-amber-100/90 text-stone-700 hover:text-amber-950 border border-amber-200/60 text-[10px] transition-colors"
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Random Remix action */}
+      <button
+        onClick={onRandomRemix}
+        className="w-full flex items-center gap-2 p-2 rounded-xl text-left text-xs text-amber-950 hover:bg-amber-50/80 transition-colors group border border-stone-200/80"
+      >
+        <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center text-amber-800 group-hover:scale-110 transition-transform">
+          <Dices className="w-3.5 h-3.5" />
+        </div>
+        <div>
+          <div className="font-semibold text-stone-900">
+            Phối Ngẫu Nhiên (Remix)
+          </div>
+          <div className="text-[10px] text-stone-500">
+            Thử nghiệm tổ hợp để kiểm định văn hóa
+          </div>
+        </div>
+      </button>
+
+      {/* Preset List */}
+      <div className="pt-1">
+        <div className="px-1 text-[10px] uppercase tracking-wider text-stone-500 font-semibold mb-1">
+          Bộ sưu tập có sẵn:
+        </div>
+
+        <div className="space-y-1">
+          {OUTFIT_PRESETS.map((preset) => {
+            const isEquipped = preset.garmentIds.every((id) =>
+              equippedGarmentIds.includes(id),
+            );
+            const isGenZ = preset.presetType === "genz_remix";
+            return (
+              <button
+                key={preset.id}
+                onClick={() => onApplyPreset(preset)}
+                className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-colors ${
+                  isEquipped
+                    ? "bg-amber-50 text-amber-950 font-semibold border border-amber-200/80"
+                    : "text-stone-700 hover:bg-stone-100 hover:text-stone-900"
+                }`}
+              >
+                <div className="truncate pr-2">
+                  <div className="flex items-center gap-1.5">
+                    {isGenZ && (
+                      <span className="text-[9px] px-1 py-0.2 rounded bg-amber-200 text-amber-900 font-bold">
+                        GEN Z
+                      </span>
+                    )}
+                    <span className="truncate">{preset.name}</span>
+                  </div>
+                  <div className="text-[9.5px] text-stone-500 truncate">
+                    {preset.dynastyName}
+                  </div>
+                </div>
+                {isEquipped && (
+                  <Check className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function App() {
+  const [show3DDisclaimer, setShow3DDisclaimer] = useState(false);
+
+  // 3D Showroom <-> 2D Gen Z Remix Studio 2-way mode
+  const [activeView, setActiveView] = useState<"studio_2d" | "gallery_3d" | "lookbook">(
+    "studio_2d",
+  );
+
+  useEffect(() => {
+    const is3DView = activeView === 'gallery_3d';
+    
+    // Mỗi khi chuyển vào View 3D, LUÔN LUÔN bật Pop-up lên (Không cache)
+    if (is3DView) {
+      setShow3DDisclaimer(true);
+    } else {
+      // Tắt Pop-up đi nếu chuyển sang view khác (vd: quay lại 2D) để tránh lỗi đọng state
+      setShow3DDisclaimer(false); 
+    }
+  }, [activeView]);
+
+  const handleAccept3DDisclaimer = () => {
+    // Chỉ đơn giản là đóng modal, không lưu gì vào storage
+    setShow3DDisclaimer(false);
+  };
   // Start with default authentic preset or Gen Z remix
   const defaultPreset = OUTFIT_PRESETS[0];
   const [equippedGarmentIds, setEquippedGarmentIds] = useState<string[]>(
@@ -90,10 +266,7 @@ export default function App() {
   // First-impression Onboarding state
   const [isIntroActive, setIsIntroActive] = useState<boolean>(true);
 
-  // 3D Showroom <-> 2D Gen Z Remix Studio 2-way mode
-  const [activeView, setActiveView] = useState<"studio_2d" | "gallery_3d" | "lookbook">(
-    "studio_2d",
-  );
+
   const [galleryTargetId, setGalleryTargetId] = useState<string>("overview");
   const {
     snapshots, storageNotice, selectedId, selectSnapshot,
@@ -128,7 +301,6 @@ export default function App() {
   } | null>(null);
 
   // AI Vibe-to-outfit prompt state
-  const [vibePrompt, setVibePrompt] = useState<string>("");
   const [isVibeLoading, setIsVibeLoading] = useState<boolean>(false);
   const [vibeStatusMessage, setVibeStatusMessage] = useState<string | null>(
     null,
@@ -396,7 +568,7 @@ export default function App() {
 
   // AI Vibe-to-Outfit Handler
   const handleApplyVibe = async (customPrompt?: string) => {
-    const promptToUse = (customPrompt || vibePrompt).trim();
+    const promptToUse = (customPrompt || "").trim();
     if (!promptToUse) return;
 
     setIsVibeLoading(true);
@@ -424,7 +596,6 @@ export default function App() {
         if (data.weatherType) setActiveWeather(data.weatherType);
 
         setActivePopover(null);
-        setVibePrompt("");
       }
     } catch (err) {
       console.warn("Vibe generation error:", err);
@@ -722,138 +893,13 @@ export default function App() {
                   </div>
 
                   {/* --- 1. AI VIBE-TO-OUTFIT INPUT --- */}
-                  <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-amber-950 flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-[#996515]" />✨ AI
-                        Phối Theo Vibe
-                      </span>
-                      <span className="text-[9.5px] text-amber-800/80 font-mono">
-                        Gemini 2.5 Flash
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="text"
-                        value={vibePrompt}
-                        onChange={(e) => setVibePrompt(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleApplyVibe();
-                        }}
-                        placeholder="VD: Đi concert trời mát, thích Áo Ngũ Thân..."
-                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-white border border-amber-300/80 text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                      />
-                      <button
-                        onClick={() => handleApplyVibe()}
-                        disabled={isVibeLoading}
-                        className="p-1.5 rounded-lg bg-[#996515] hover:bg-amber-800 text-white font-medium transition-colors disabled:opacity-50"
-                        title="Gợi ý tổ hợp y phục theo vibe"
-                      >
-                        {isVibeLoading ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Send className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    </div>
-
-                    {/* 1-Click Quick Vibe Chips */}
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {[
-                        {
-                          label: "🎸 Đi Concert",
-                          prompt:
-                            "Đi concert quẩy âm nhạc trời mát, phối Áo Ngũ Thân streetwear với jeans và tai nghe",
-                        },
-                        {
-                          label: "☕ Cafe Hoài Cổ",
-                          prompt:
-                            "Dạo phố cafe hoài cổ với Áo Giao Lĩnh Hậu Lê, kính râm Y2K và boots da",
-                        },
-                        {
-                          label: "🎓 Kỷ Yếu Tân Thời",
-                          prompt:
-                            "Chụp kỷ yếu tốt nghiệp với Áo Dài Tân Thời cách tân màu xanh pastel và sneaker",
-                        },
-                        {
-                          label: "⛩️ Lễ Chùa Thanh Tịnh",
-                          prompt:
-                            "Đi lễ chùa thanh tịnh trang nghiêm với Áo Tấc tay thụng ngọc bích và hài thêu",
-                        },
-                      ].map((chip, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handleApplyVibe(chip.prompt)}
-                          className="px-2 py-0.5 rounded-full bg-white hover:bg-amber-100/90 text-stone-700 hover:text-amber-950 border border-amber-200/60 text-[10px] transition-colors"
-                        >
-                          {chip.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Random Remix action */}
-                  <button
-                    onClick={handleRandomRemix}
-                    className="w-full flex items-center gap-2 p-2 rounded-xl text-left text-xs text-amber-950 hover:bg-amber-50/80 transition-colors group border border-stone-200/80"
-                  >
-                    <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center text-amber-800 group-hover:scale-110 transition-transform">
-                      <Dices className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-stone-900">
-                        Phối Ngẫu Nhiên (Remix)
-                      </div>
-                      <div className="text-[10px] text-stone-500">
-                        Thử nghiệm tổ hợp để kiểm định văn hóa
-                      </div>
-                    </div>
-                  </button>
-
-                  {/* Preset List */}
-                  <div className="pt-1">
-                    <div className="px-1 text-[10px] uppercase tracking-wider text-stone-500 font-semibold mb-1">
-                      Bộ sưu tập có sẵn:
-                    </div>
-
-                    <div className="space-y-1">
-                      {OUTFIT_PRESETS.map((preset) => {
-                        const isEquipped = preset.garmentIds.every((id) =>
-                          equippedGarmentIds.includes(id),
-                        );
-                        const isGenZ = preset.presetType === "genz_remix";
-                        return (
-                          <button
-                            key={preset.id}
-                            onClick={() => handleApplyPreset(preset)}
-                            className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-colors ${
-                              isEquipped
-                                ? "bg-amber-50 text-amber-950 font-semibold border border-amber-200/80"
-                                : "text-stone-700 hover:bg-stone-100 hover:text-stone-900"
-                            }`}
-                          >
-                            <div className="truncate pr-2">
-                              <div className="flex items-center gap-1.5">
-                                {isGenZ && (
-                                  <span className="text-[9px] px-1 py-0.2 rounded bg-amber-200 text-amber-900 font-bold">
-                                    GEN Z
-                                  </span>
-                                )}
-                                <span className="truncate">{preset.name}</span>
-                              </div>
-                              <div className="text-[9.5px] text-stone-500 truncate">
-                                {preset.dynastyName}
-                              </div>
-                            </div>
-                            {isEquipped && (
-                              <Check className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <VibePromptSection
+                    isVibeLoading={isVibeLoading}
+                    onApplyVibe={handleApplyVibe}
+                    onRandomRemix={handleRandomRemix}
+                    equippedGarmentIds={equippedGarmentIds}
+                    onApplyPreset={handleApplyPreset}
+                  />
                 </div>
               )}
             </div>
@@ -1295,6 +1341,32 @@ export default function App() {
           onClose={() => setActivePopover(null)}
           onApplyIdentifiedGarments={handleApplyIdentifiedGarments}
         />
+
+
+      {/* 2. Pop-up Welcome Cho Màn Hình 3D (Luôn hiện mỗi lần vào) */}
+      {show3DDisclaimer && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm transition-opacity">
+          <div className="bg-[#fcfaf8] max-w-md w-full rounded-2xl shadow-2xl overflow-hidden border border-amber-900/10 animate-in fade-in zoom-in duration-300">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-amber-700">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-amber-950 mb-2 font-serif">Lưu ý trước khi trải nghiệm 3D</h3>
+              <p className="text-sm text-stone-600 mb-6 leading-relaxed">
+                Các mô hình 3D trong Hành lang được thiết kế nhằm <strong>minh họa phom dáng (proxy)</strong> cho bản phối 2D. Các chi tiết hoa văn, tỷ lệ viền hoặc chất liệu có thể chứa sai lệch so với cổ phục thực tế và <strong>chưa qua giám định chuyên môn</strong>.
+              </p>
+              <button
+                onClick={handleAccept3DDisclaimer}
+                className="w-full py-3 px-4 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-medium transition-colors shadow-md pointer-events-auto"
+              >
+                Tôi đã hiểu và Tiến vào Hành lang
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
       {isIntroActive && (
         <IntroOnboardingModal

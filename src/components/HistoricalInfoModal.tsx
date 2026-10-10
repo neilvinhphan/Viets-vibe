@@ -1,7 +1,16 @@
-import React, { useMemo } from 'react';
-import { Garment } from '../types';
-import { GALLERY_3D_TO_2D_MAP } from '../data/garments';
-import { X, BookOpen, Scroll, Award, Sparkles, Check, Plus, ExternalLink } from 'lucide-react';
+import React, { useMemo } from "react";
+import { Garment } from "../types";
+import { GALLERY_3D_TO_2D_MAP } from "../data/garments";
+import {
+  X,
+  BookOpen,
+  Scroll,
+  Award,
+  Sparkles,
+  Check,
+  Plus,
+  ExternalLink,
+} from "lucide-react";
 
 interface HistoricalInfoModalProps {
   garment: Garment | null;
@@ -22,20 +31,26 @@ export const HistoricalInfoModal: React.FC<HistoricalInfoModalProps> = ({
 
   const gallery3DId = useMemo(() => {
     for (const [galleryId, config] of Object.entries(GALLERY_3D_TO_2D_MAP)) {
-      if (config.primaryGarmentId === garment.id || config.garmentIds.includes(garment.id)) {
+      if (
+        config.primaryGarmentId === garment.id ||
+        config.garmentIds.includes(garment.id)
+      ) {
         return galleryId;
       }
     }
-    if (garment.id.includes('giao_linh')) return 'giao_linh';
-    if (garment.id.includes('tu_than')) return 'tu_than';
-    if (garment.id.includes('ngu_than')) return 'ngu_than';
-    if (garment.id.includes('ao_dai')) return 'ao_dai';
-    if (garment.id.includes('nhat_binh')) return 'nhat_binh';
+    if (garment.id.includes("giao_linh")) return "giao_linh";
+    if (garment.id.includes("tu_than")) return "tu_than";
+    if (garment.id.includes("ngu_than")) return "ngu_than";
+    if (garment.id.includes("ao_dai")) return "ao_dai";
+    if (garment.id.includes("nhat_binh")) return "nhat_binh";
     return null;
   }, [garment.id]);
 
   return (
-    <div id="historical-info-modal" className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+    <div
+      id="historical-info-modal"
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in"
+    >
       <div className="relative w-full max-w-xl max-h-[90vh] bg-[#faf8f5] border border-stone-200/90 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-stone-800">
         {/* Header with Garment Banner Color */}
         <div
@@ -76,7 +91,9 @@ export const HistoricalInfoModal: React.FC<HistoricalInfoModalProps> = ({
           {/* Formality and Social Rank Highlights */}
           <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-white border border-stone-200/80 shadow-2xs">
             <div>
-              <span className="text-[11px] text-stone-500 block mb-0.5">Phẩm cấp nghi lễ:</span>
+              <span className="text-[11px] text-stone-500 block mb-0.5">
+                Phẩm cấp nghi lễ:
+              </span>
               <span className="text-xs font-semibold text-stone-900 flex items-center gap-1.5">
                 <Award className="w-3.5 h-3.5 text-[#996515]" />
                 {garment.formalityName}
@@ -84,7 +101,9 @@ export const HistoricalInfoModal: React.FC<HistoricalInfoModalProps> = ({
             </div>
 
             <div>
-              <span className="text-[11px] text-stone-500 block mb-0.5">Thân phận phục sức:</span>
+              <span className="text-[11px] text-stone-500 block mb-0.5">
+                Thân phận phục sức:
+              </span>
               <span className="text-xs font-semibold text-stone-900 flex items-center gap-1.5">
                 <Scroll className="w-3.5 h-3.5 text-sky-700" />
                 {garment.socialRankName}
@@ -92,17 +111,26 @@ export const HistoricalInfoModal: React.FC<HistoricalInfoModalProps> = ({
             </div>
 
             <div>
-              <span className="text-[11px] text-stone-500 block mb-0.5">Chất liệu gấm vóc:</span>
+              <span className="text-[11px] text-stone-500 block mb-0.5">
+                Chất liệu gấm vóc:
+              </span>
               <span className="text-xs text-stone-800 font-medium">
                 {garment.fabric}
               </span>
             </div>
 
             <div>
-              <span className="text-[11px] text-stone-500 block mb-0.5">Sắc phục chủ đạo:</span>
+              <span className="text-[11px] text-stone-500 block mb-0.5">
+                Sắc phục chủ đạo:
+              </span>
               <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full border border-stone-300" style={{ backgroundColor: garment.colorHex }} />
-                <span className="text-xs text-stone-800">{garment.colorName}</span>
+                <span
+                  className="w-3 h-3 rounded-full border border-stone-300"
+                  style={{ backgroundColor: garment.colorHex }}
+                />
+                <span className="text-xs text-stone-800">
+                  {garment.colorName}
+                </span>
               </div>
             </div>
           </div>
@@ -132,8 +160,7 @@ export const HistoricalInfoModal: React.FC<HistoricalInfoModalProps> = ({
           {/* Cultural Symbolism */}
           <div>
             <h3 className="text-xs font-semibold text-[#996515] uppercase tracking-wider mb-1.5 flex items-center gap-1.5 font-royal">
-              <Scroll className="w-3.5 h-3.5" />
-              Ý nghĩa biểu tượng văn hóa
+              <Scroll className="w-3.5 h-3.5" />Ý nghĩa biểu tượng văn hóa
             </h3>
             <p className="text-xs text-stone-700 leading-relaxed bg-white p-3 rounded-xl border border-stone-200/80 shadow-2xs">
               {garment.symbolism}
@@ -148,7 +175,10 @@ export const HistoricalInfoModal: React.FC<HistoricalInfoModalProps> = ({
               </span>
               <ul className="space-y-1">
                 {garment.citations.map((cite, index) => (
-                  <li key={index} className="text-xs text-stone-700 italic flex items-center gap-1.5">
+                  <li
+                    key={index}
+                    className="text-xs text-stone-700 italic flex items-center gap-1.5"
+                  >
                     <ExternalLink className="w-3 h-3 text-[#996515]" />
                     {cite}
                   </li>
@@ -156,6 +186,16 @@ export const HistoricalInfoModal: React.FC<HistoricalInfoModalProps> = ({
               </ul>
             </div>
           )}
+
+        {/* Disclaimer cho thông tin trang phục */}
+        <div className="mt-4 pt-4 border-t border-amber-900/10 flex items-start gap-2 text-[10px] sm:text-[11px] text-amber-900/60 leading-tight">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-700/50">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+          </svg>
+          <p>
+            <strong>Lưu ý:</strong> Các chi tiết hoa văn, tỷ lệ viền hoặc chất liệu phục dựng trên bản phối 2D có thể chứa sai lệch so với hiện vật lịch sử và <strong>chưa qua giám định chuyên môn</strong>.
+          </p>
+        </div>
         </div>
 
         {/* Footer Actions */}
@@ -189,12 +229,12 @@ export const HistoricalInfoModal: React.FC<HistoricalInfoModalProps> = ({
               }}
               className={`inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold transition-all ${
                 isEquipped
-                  ? 'bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100'
-                  : 'bg-stone-900 text-stone-50 hover:bg-stone-800 shadow-xs'
+                  ? "bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100"
+                  : "bg-stone-900 text-stone-50 hover:bg-stone-800 shadow-xs"
               }`}
             >
               {isEquipped ? (
-                'Tháo trang phục này'
+                "Tháo trang phục này"
               ) : (
                 <>
                   <Plus className="w-3.5 h-3.5" />

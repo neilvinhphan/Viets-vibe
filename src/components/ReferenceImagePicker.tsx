@@ -197,15 +197,15 @@ export function ReferenceImagePicker({ garments, onSelectReferenceImage, initial
             <p className="font-semibold text-stone-700">{queryMode === 'gemini' ? 'Từ khóa AI đề xuất — bấm để sửa' : queryMode === 'custom' ? 'Từ khóa tìm kiếm của bạn' : 'Từ khóa từ bản phối — bấm để sửa'}</p>
             {([['remixSearchQuery', 'Sát bản phối'], ['styleSearchQuery', 'Mở rộng phong cách'], ['traditionalSearchQuery', 'Phom truyền thống']] as const).map(([key, label]) => <label key={key} className="block rounded-lg bg-white/80 px-3 py-2">
               <span className="block mb-1 font-medium text-amber-800">{label}</span>
-              <input value={queryDrafts[key]} onChange={event => setQueryDrafts(prev => ({ ...prev, [key]: event.target.value }))} required minLength={3} maxLength={220} disabled={loading} className="w-full min-w-0 rounded border border-stone-200 bg-white px-2 py-2 text-stone-800 focus:border-amber-500 focus:outline-none disabled:opacity-60" />
+              <input value={queryDrafts[key]} onChange={event => setQueryDrafts(prev => ({ ...prev, [key]: event.target.value }))} required minLength={3} maxLength={220} disabled={loading} className="w-full min-w-0 rounded border border-stone-200 bg-white px-2 py-2 text-stone-800 focus:border-amber-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed" />
             </label>)}
-            <button type="submit" disabled={loading || !canSearch || Object.values(queryDrafts).some(q => q.trim().length < 3)} className="flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 font-semibold text-white hover:bg-stone-700 disabled:opacity-40"><RefreshCw className="h-3.5 w-3.5" />Tìm lại trên Web</button>
+            <button type="submit" disabled={loading || !canSearch || Object.values(queryDrafts).some(q => q.trim().length < 3)} className="flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 font-semibold text-white hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed"><RefreshCw className="h-3.5 w-3.5" />Tìm lại trên Web</button>
           </form>
         </div>
 
         <div className="my-4 flex flex-wrap items-center gap-2">
           {filters.map(([value, label]) => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)} className={`rounded-full border px-3 py-2 text-[11px] font-medium transition-colors ${filter === value ? 'border-stone-900 bg-stone-900 text-white' : 'border-stone-200 bg-white hover:bg-stone-100'}`}>{label}</button>)}
-          <button onClick={() => inputRef.current?.click()} disabled={uploading || uploads.length >= 5} className="flex items-center gap-1.5 rounded-full border border-dashed border-amber-400 px-3 py-2 text-[11px] font-semibold text-amber-900 hover:bg-amber-50 disabled:opacity-50"><ImagePlus className="h-3.5 w-3.5" />{uploading ? 'Đang đọc ảnh…' : '+ Tự tải ảnh từ máy'}</button>
+          <button onClick={() => inputRef.current?.click()} disabled={uploading || uploads.length >= 5} className="flex items-center gap-1.5 rounded-full border border-dashed border-amber-400 px-3 py-2 text-[11px] font-semibold text-amber-900 hover:bg-amber-50 disabled:opacity-50 disabled:cursor-not-allowed"><ImagePlus className="h-3.5 w-3.5" />{uploading ? 'Đang đọc ảnh…' : '+ Tự tải ảnh từ máy'}</button>
           <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" aria-label="Tải ảnh mẫu từ máy" onChange={upload} />
         </div>
         {uploadError && <p role="alert" className="mb-3 text-xs text-red-700">{uploadError}</p>}
